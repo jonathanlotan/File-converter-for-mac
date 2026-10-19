@@ -5,15 +5,56 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   core:
-    name: Conversion engine
-    runs-on: macos-26
+    # macOS 15 is the oldest image GitHub still offers that this runs on
+    # (macos-14 is retired on 2 November 2026). It checks the places where
+    # the system decides what the engine can do, such as which formats
+    # ImageIO can write.
+    name: Conversion engine (macOS ${{ matrix.macos }})
+    runs-on: macos-${{ matrix.macos }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        macos: [26, 15]
     steps:
       - uses: actions/checkout@v4
+      # The Makefile defaults DEVELOPER_DIR to /Applications/Xcode.app, which
+      # a runner image doesn't always have; this points it at what is there.
+      - name: Select the newest Xcode
+        run: |
+          xcode=$(printf '%s\n' /Applications/Xcode_*.app | grep -viE 'beta|_RC|candidate' | sort -V | tail -n 1)
+          [ -d "$xcode" ] || xcode=/Applications/Xcode.app
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          echo "DEVELOPER_DIR=$xcode/Contents/Developer" >> "$GITHUB_ENV"
       - name: Show the toolchain
-        run: xcodebuild -version && swift --version
+        run: sw_vers && xcodebuild -version && swift --version
       - name: Build the swivel command
         run: make cli
       - name: Run the engine's tests
         run: make core-test
+
+  app:
+    name: App (macOS 26)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      # The app's tests render SwiftUI views offscreen and run `nm -u` on the
+      # built app, so they need a full Xcode, not just the command line tools.
+      - name: Select the newest Xcode
+        run: |
+          xcode=$(printf '%s\n' /Applications/Xcode_*.app | grep -viE 'beta|_RC|candidate' | sort -V | tail -n 1)
+          [ -d "$xcode" ] || xcode=/Applications/Xcode.app
+          sudo xcode-select -s "$xcode/Contents/Developer"
+          echo "DEVELOPER_DIR=$xcode/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Show the toolchain
+        run: sw_vers && xcodebuild -version && swift --version
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Run the app's tests
+        run: make app-test
