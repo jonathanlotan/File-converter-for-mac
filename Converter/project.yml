@@ -23,6 +23,9 @@ settings:
     ARCHS: arm64
     EXCLUDED_ARCHS: x86_64
     # "Sign to Run Locally" (ad hoc) until a Developer ID is available.
+    # Shortcuts ignores an ad hoc build: it lists an app's App Intents only
+    # when the app has a team identity (Developer ID or Apple Development)
+    # and sits in /Applications or ~/Applications. The release build does.
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ""

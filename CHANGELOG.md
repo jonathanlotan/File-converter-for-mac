@@ -15,4 +15,8 @@ The first public release.
   shelf, copy, move, copy the path, open in Terminal.
 - A welcome window with a practice wheel on first launch.
 - The `swivel` command line, inside the app and installed by Homebrew.
+- **Shortcuts.** A **Convert File** action for the Shortcuts app: files and a conversion in,
+  the results out, saved next to the originals. Builds folder automations and Quick Actions
+  without the wheel. **Convert to JPEG**, **Compress** and **Convert to PDF** come ready-made,
+  in Spotlight too.
 - Signed with Developer ID and notarized; `brew install --cask jonathanlotan/tap/swivel`.
