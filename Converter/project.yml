@@ -33,7 +33,7 @@ settings:
     # One plain executable instead of a stub plus Swivel.debug.dylib
     # (that split only serves SwiftUI previews).
     ENABLE_DEBUG_DYLIB: NO
-    MARKETING_VERSION: "1.1.0"
+    MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "3"
 
 targets:
