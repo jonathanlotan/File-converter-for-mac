@@ -106,27 +106,25 @@ final class IntentTests: XCTestCase {
     func testSwivelsOwnResultsAreNotConvertedAgain() async throws {
         // A folder automation: "when files are added, compress them". Each
         // result lands in the same folder and comes back as a new file.
-        let jpeg = try makeImage("photo.jpg", in: folder, width: 1200, height: 800, type: "public.jpeg")
+        let jpeg = try makeNoisyJPEG("photo.jpg", in: folder)
         let compress = try await conversion("image.compress")
         let first = try outputs(of: try await ConvertFileIntent(files: [IntentFile(fileURL: jpeg.url)], conversion: compress).perform())
         let result = try XCTUnwrap(first.first?.fileURL)
         XCTAssertEqual(result.lastPathComponent, "photo (compressed).jpg")
 
-        await assertFails("photo (compressed).jpg is already the result of Compress.") {
-            try await ConvertFileIntent(files: [IntentFile(fileURL: result)], conversion: compress).perform()
-        }
-        await assertFails("photo (compressed).jpg is already the result of Compress.") {
-            try await CompressIntent(files: [IntentFile(fileURL: result)]).perform()
-        }
+        // Only its own result: nothing converted, and no error to notify about.
+        let again1 = try outputs(of: try await ConvertFileIntent(files: [IntentFile(fileURL: result)], conversion: compress).perform())
+        XCTAssertEqual(again1.count, 0)
+        let again2 = try outputs(of: try await CompressIntent(files: [IntentFile(fileURL: result)]).perform())
+        XCTAssertEqual(again2.count, 0)
 
         // The original added again: its result takes the next number, and is left alone in turn.
         let again = try outputs(of: try await CompressIntent(files: [IntentFile(fileURL: jpeg.url), IntentFile(fileURL: result)])
             .perform())
         let numbered = try XCTUnwrap(again.first?.fileURL)
         XCTAssertEqual(again.map(\.fileURL?.lastPathComponent), ["photo (compressed) 2.jpg"])
-        await assertFails("photo (compressed) 2.jpg is already the result of Compress.") {
-            try await CompressIntent(files: [IntentFile(fileURL: numbered)]).perform()
-        }
+        let again3 = try outputs(of: try await CompressIntent(files: [IntentFile(fileURL: numbered)]).perform())
+        XCTAssertEqual(again3.count, 0)
 
         // Only a conversion's own results: another tool still applies.
         let cleaned = try outputs(of: try await ConvertFileIntent(files: [IntentFile(fileURL: result)],

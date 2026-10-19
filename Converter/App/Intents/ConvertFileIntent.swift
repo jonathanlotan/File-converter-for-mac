@@ -38,13 +38,18 @@ struct ConvertFileIntent: AppIntent {
         // converts what it can and skips the rest.
         var convertible: [InputFile] = []
         var skipped: [String] = []
+        var ownResults = 0
         for input in try IntentConversion.inputs(for: files) {
             if let reason = IntentConversion.reasonToSkip(input, with: converter) {
                 skipped.append(reason)
+                if converter.accepts(input) && IntentConversion.isResult(input, of: converter) { ownResults += 1 }
             } else {
                 convertible.append(input)
             }
         }
+        // Only its own results (a folder automation seeing what it just
+        // saved): nothing to do, and nothing to complain about.
+        if convertible.isEmpty && ownResults == skipped.count { return .result(value: []) }
         guard !convertible.isEmpty else { throw ConversionIntentError(IntentConversion.summary(skipped)) }
         guard convertible.count >= converter.minimumInputs else {
             throw ConversionIntentError(IntentConversion.summary(
@@ -102,7 +107,8 @@ enum IntentSupport {
 /// doesn't apply to are skipped rather than failing the action, and so are
 /// the conversion's own results: a folder automation would otherwise
 /// convert each result again as it lands beside the original. The action
-/// fails only when nothing at all was converted, saying why.
+/// fails only when nothing at all was converted, saying why, except when
+/// every file was its own result: then it returns nothing, quietly.
 enum IntentConversion {
     /// A converter and the files it runs on (together, when it combines them).
     struct Job: Sendable {
@@ -144,6 +150,7 @@ enum IntentConversion {
         let candidates = ids.compactMap { id in available.first { $0.id == id } }
         var jobs: [Job] = []
         var skipped: [String] = []
+        var ownResults = 0
         for input in try inputs(for: files) {
             let name = input.url.lastPathComponent
             guard let converter = candidates.first(where: { $0.accepts(input) }) else {
@@ -152,10 +159,13 @@ enum IntentConversion {
             }
             guard !isResult(input, of: converter) else {
                 skipped.append(resultMessage(name, label: label))
+                ownResults += 1
                 continue
             }
             jobs.append(Job(converter: converter, inputs: [input]))
         }
+        // Only its own results, as in perform() above: quietly nothing.
+        if jobs.isEmpty && ownResults == skipped.count { return [] }
         return try await run(jobs, skipped: skipped)
     }
 
