@@ -19,6 +19,7 @@ final class RadialSnapshotTests: XCTestCase {
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 
         let model = RadialMenuModel()
+        model.isPresented = true // as after the appear animation
         model.load([photo])
         let g = model.geometry
         let r = (g.innerRadius + g.outerRadius) / 2
@@ -43,10 +44,25 @@ final class RadialSnapshotTests: XCTestCase {
 
         // 3. The actions ring, hovering Copy Path.
         model.setMode(.actions)
-        model.hover(at: ringPoint(4))
+        model.hover(at: ringPoint(try XCTUnwrap(model.slices.firstIndex { $0.title == "Copy Path" })))
         try render(model, to: out.appendingPathComponent("radial-actions"))
 
-        // 4. Over the centre (cancel).
+        // 4. Share open, hovering Mail.
+        model.hover(at: ringPoint(0))
+        model.openGroup(0)
+        let mail = g.subCenterAngle(member: 1, members: model.openGroupMembers.count, parent: 0, count: model.slices.count)
+        model.hover(at: CGPoint(x: sr * CGFloat(sin(mail)), y: sr * CGFloat(cos(mail))))
+        try render(model, to: out.appendingPathComponent("radial-share"))
+
+        // 5. Crop open (tools ring).
+        model.setMode(.tools)
+        let crop = try XCTUnwrap(model.slices.firstIndex { $0.title == "Crop" })
+        model.hover(at: ringPoint(crop))
+        model.openGroup(crop)
+        try render(model, to: out.appendingPathComponent("radial-crop"))
+        model.setMode(.actions)
+
+        // 6. Over the centre (cancel).
         model.hover(at: .zero)
         try render(model, to: out.appendingPathComponent("radial-cancel"))
         print("snapshots in \(out.path)")

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import ConverterCore
 import SwiftUI
 
@@ -16,6 +17,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let mainMenu = NSMenu()
     /// Results of the current batch, selected in Finder when it ends.
     private var batchOutputs: [URL] = []
+    private var visibility: AnyCancellable?
 
     private var iconTimer: Timer?
     private var badge: StatusIcon.Badge = .none
@@ -44,6 +46,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         mainMenu.delegate = self
         mainMenu.autoenablesItems = false
         statusItem.menu = mainMenu
+        statusItem.autosaveName = "ConverterStatusItem"
+        if let settings {
+            visibility = settings.$showMenuBarIcon.sink { [weak self] shown in self?.statusItem.isVisible = shown }
+        }
 
         queue.onChange = { [weak self] in self?.queueChanged() }
         queue.onFinish = { [weak self] job in self?.jobFinished(job) }
@@ -81,7 +87,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let urls = inputs.map(\.url)
         let picker = ConversionMenu.make(
             for: inputs, converters: converters, preferred: settings?.preferredFormatIDs ?? [],
-            onPick: { [weak self] converter in self?.queue.enqueue(converter, on: inputs) },
+            onPick: { [weak self] converter in self?.queue.start(converter, on: inputs) },
             onAction: actions.map { performer in { action in performer.perform(action, on: urls) } })
         switch placement {
         case .statusItem:
@@ -129,8 +135,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
 
         if queue.jobs.isEmpty {
-            menu.addItem(ConversionMenu.disabledItem("Drop files here, or Shift-drag them anywhere"))
+            menu.addItem(ConversionMenu.disabledItem("Drop files here, or drag them and tap ⇧ ⌘ ⌃"))
         } else {
+            menu.addItem(ConversionMenu.header("Conversions"))
             for job in queue.jobs {
                 menu.addItem(row(for: job))
             }
@@ -139,6 +146,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(clear)
         }
 
+        // Icons follow Apple's guidance: sparingly, and for every item in a
+        // group or none. Only the Settings/About group and Quit have them.
         menu.addItem(.separator())
         if let shiftDrag {
             let toggle = ActionMenuItem(title: "Wheel While Dragging") { shiftDrag.isEnabled.toggle() }
@@ -146,12 +155,25 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             toggle.toolTip = "While dragging files, tap Shift (formats), Command (tools) or Control (actions) to open the wheel."
             menu.addItem(toggle)
         }
-        menu.addItem(ActionMenuItem(title: "Settings…", keyEquivalent: ",") { [weak self] in self?.showSettings() })
-        menu.addItem(ActionMenuItem(title: "About Converter") {
+        #if DEBUG
+        if let shiftDrag {
+            menu.addItem(ActionMenuItem(title: "Preview Wheel (Debug)") { shiftDrag.previewWheel() })
+        }
+        #endif
+        menu.addItem(.separator())
+        let settingsItem = ActionMenuItem(title: "Settings…", keyEquivalent: ",") { [weak self] in self?.showSettings() }
+        MenuIcons.set("gearshape", on: settingsItem)
+        menu.addItem(settingsItem)
+        let about = ActionMenuItem(title: "About Converter") {
             NSApp.activate(ignoringOtherApps: true)
             NSApp.orderFrontStandardAboutPanel(nil)
-        })
-        menu.addItem(ActionMenuItem(title: "Quit Converter", keyEquivalent: "q") { NSApp.terminate(nil) })
+        }
+        MenuIcons.set("info.circle", on: about)
+        menu.addItem(about)
+        menu.addItem(.separator())
+        let quit = ActionMenuItem(title: "Quit Converter", keyEquivalent: "q") { NSApp.terminate(nil) }
+        MenuIcons.set("power", on: quit)
+        menu.addItem(quit)
     }
 
     private func row(for job: Job) -> NSMenuItem {

@@ -34,6 +34,7 @@ final class ConversionMenuModelTests: XCTestCase {
 
         XCTAssertEqual(titles(model.tools), [
             "Resize: 50%, 25%, 1920 px, 1280 px, 640 px",
+            "Crop: Square, 4:3, 3:2, 16:9, 3:4, 2:3, 9:16",
             "Compress",
             "Remove Metadata",
             "Recognize Text",
@@ -51,7 +52,8 @@ final class ConversionMenuModelTests: XCTestCase {
         }
 
         XCTAssertEqual(menu.items.first?.title, "Convert “photo.png”")
-        XCTAssertFalse(menu.items.first?.isEnabled ?? true)
+        XCTAssertTrue(menu.items.first?.isSectionHeader ?? false, "a section header, not a choice")
+        XCTAssertEqual(menu.items.filter(\.isSectionHeader).map(\.title), ["Convert “photo.png”", "Tools"])
         let jpeg = try XCTUnwrap(menu.items.first { $0.title == "JPEG" })
         XCTAssertEqual(jpeg.toolTip, "Saves “photo 2.jpg” next to the original")
         let more = try XCTUnwrap(menu.items.first { $0.title == "More Formats" }?.submenu)
@@ -70,6 +72,7 @@ final class ConversionMenuModelTests: XCTestCase {
         let inputs = [try makeImage("photo.png", in: folder), try InputFile(url: rar)]
         let menu = ConversionMenu.make(for: inputs, converters: ConverterRegistry.standard.converters(for: inputs)) { _ in }
         XCTAssertEqual(menu.items.map(\.title), ["Convert 2 files", "No conversion works for all of these files"])
-        XCTAssertTrue(menu.items.allSatisfy { !$0.isEnabled })
+        XCTAssertTrue(menu.items[0].isSectionHeader)
+        XCTAssertFalse(menu.items[1].isEnabled, "nothing to choose")
     }
 }

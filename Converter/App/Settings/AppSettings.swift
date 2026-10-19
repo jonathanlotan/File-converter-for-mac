@@ -61,6 +61,7 @@ final class AppSettings: ObservableObject {
     static let revealKey = "RevealAfterConverting"
     static let ringKeysKey = "RingKeys"
     static let terminalKey = "TerminalApp"
+    static let menuBarIconKey = "ShowMenuBarIcon"
 
     /// Quality, bit rates and sizes the converters use.
     @Published var options: ConversionOptions {
@@ -82,6 +83,12 @@ final class AppSettings: ObservableObject {
             if let data = try? JSONEncoder().encode(ringKeys) { defaults.set(data, forKey: Self.ringKeysKey) }
         }
     }
+    /// Show the icon in the menu bar. Apple's guidance: let people hide
+    /// it, and don't rely on it being there (opening the app again shows
+    /// Settings).
+    @Published var showMenuBarIcon: Bool {
+        didSet { defaults.set(showMenuBarIcon, forKey: Self.menuBarIconKey) }
+    }
     /// Where the Terminal action opens folders.
     @Published var terminalApp: TerminalApp {
         didSet { defaults.set(terminalApp.rawValue, forKey: Self.terminalKey) }
@@ -102,6 +109,7 @@ final class AppSettings: ObservableObject {
         ringKeys = defaults.data(forKey: Self.ringKeysKey)
             .flatMap { try? JSONDecoder().decode(RingKeys.self, from: $0) } ?? .standard
         terminalApp = defaults.string(forKey: Self.terminalKey).flatMap(TerminalApp.init(rawValue:)) ?? .terminal
+        showMenuBarIcon = defaults.object(forKey: Self.menuBarIconKey) as? Bool ?? true
         loginStatus = loginItem.status
     }
 

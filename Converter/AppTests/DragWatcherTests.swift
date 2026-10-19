@@ -196,9 +196,11 @@ final class RingKeysTests: XCTestCase {
     }
 
     func testRingsWrapAround() {
-        XCTAssertEqual(RingMode.formats.advanced(by: 1), .tools)
-        XCTAssertEqual(RingMode.actions.advanced(by: 1), .formats)
-        XCTAssertEqual(RingMode.formats.advanced(by: -1), .actions)
+        XCTAssertEqual(RingMode.wheelOrder, [.actions, .tools, .formats], "Actions first, Convert last")
+        XCTAssertEqual(RingMode.actions.advanced(by: 1), .tools)
+        XCTAssertEqual(RingMode.tools.advanced(by: 1), .formats)
+        XCTAssertEqual(RingMode.formats.advanced(by: 1), .actions)
+        XCTAssertEqual(RingMode.actions.advanced(by: -1), .formats)
     }
 }
 
@@ -206,21 +208,21 @@ final class RingScrollerTests: XCTestCase {
     func testOneRingPerTrackpadSwipe() {
         var scroller = RingScroller()
         XCTAssertNil(scroller.steps(for: ScrollSample(deltaY: -10, isPrecise: true, phase: .began, time: 0)))
-        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: -20, isPrecise: true, phase: .changed, time: 0.02)), 1)
+        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: -20, isPrecise: true, phase: .changed, time: 0.02)), -1)
         XCTAssertNil(scroller.steps(for: ScrollSample(deltaY: -40, isPrecise: true, phase: .changed, time: 0.04)),
                      "the rest of the swipe does nothing")
         XCTAssertNil(scroller.steps(for: ScrollSample(deltaY: -30, isPrecise: true, isMomentum: true, time: 0.1)),
                      "momentum is ignored")
         XCTAssertNil(scroller.steps(for: ScrollSample(deltaY: 10, isPrecise: true, phase: .began, time: 1)))
-        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: 20, isPrecise: true, phase: .changed, time: 1.02)), -1,
-                       "a new swipe the other way goes back")
+        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: 20, isPrecise: true, phase: .changed, time: 1.02)), 1,
+                       "a new swipe the other way goes the other way")
     }
 
     func testMouseWheelNotchesNeedAPause() {
         var scroller = RingScroller()
-        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: -1, isPrecise: false, time: 0)), 1)
+        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: -1, isPrecise: false, time: 0)), -1)
         XCTAssertNil(scroller.steps(for: ScrollSample(deltaY: -1, isPrecise: false, time: 0.05)))
-        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: -1, isPrecise: false, time: 0.3)), 1)
+        XCTAssertEqual(scroller.steps(for: ScrollSample(deltaY: 1, isPrecise: false, time: 0.3)), 1)
         XCTAssertNil(scroller.steps(for: ScrollSample(deltaY: 0, isPrecise: false, time: 1)))
     }
 }

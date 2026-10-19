@@ -113,10 +113,72 @@ final class FileActionTests: XCTestCase {
                                        onPick: { _ in }, onAction: { chosen.append($0.id) })
         let titles = menu.items.map(\.title)
         XCTAssertEqual(Array(titles.prefix(2)), ["Convert 2 files", "No conversion works for all of these files"])
-        XCTAssertEqual(Array(titles.suffix(6)), ["AirDrop", "Float", "Copy", "Move…", "Copy Path", "Terminal"])
+        XCTAssertEqual(Array(titles.suffix(7)), ["Share…", "Metadata", "Float", "Copy", "Move…", "Copy Path", "Terminal"])
+        let share = try XCTUnwrap(menu.items.first { $0.title == "Share…" })
+        XCTAssertNotNil(share.action, "the system's Share item opens its share sheet")
+        XCTAssertNotNil(share.target, "its picker is kept alive while the menu is open")
         let copyPath = try XCTUnwrap(menu.items.firstIndex { $0.title == "Copy Path" })
         menu.performActionForItem(at: copyPath)
         XCTAssertEqual(chosen, ["action.copyPath"])
+    }
+
+    // MARK: - Sharing and metadata
+
+    /// A stand-in sharing service that records what it was given.
+    @MainActor
+    private final class FakeService {
+        var names: [NSSharingService.Name] = []
+        var performed = 0
+        func make(_ name: NSSharingService.Name) -> NSSharingService {
+            names.append(name)
+            return NSSharingService(title: "Fake", image: NSImage(), alternateImage: nil) { [unowned self] in performed += 1 }
+        }
+    }
+
+    func testShareActionsUseTheirSystemService() throws {
+        let a = try file("a.txt")
+        let fake = FakeService()
+        let performer = performer()
+        performer.sharingService = { fake.make($0) }
+        for action in [FileAction.airDrop, .mail, .messages, .notes] {
+            performer.perform(action, on: [a])
+        }
+        XCTAssertEqual(fake.names, [.sendViaAirDrop, .composeEmail, .composeMessage,
+                                    NSSharingService.Name("com.apple.Notes.SharingExtension")])
+        XCTAssertEqual(fake.performed, 4)
+        XCTAssertTrue(reports.isEmpty)
+    }
+
+    func testMissingServiceIsReported() throws {
+        let performer = performer()
+        performer.sharingService = { _ in nil }
+        performer.perform(.messages, on: [try file("a.txt")])
+        XCTAssertEqual(reports, ["Messages can't share these files"])
+    }
+
+    func testMoreOpensTheSharePickerAndMetadataOpensItsWindow() throws {
+        let a = try file("a.txt")
+        var picked: [URL] = [], shown: [URL] = []
+        let performer = performer()
+        performer.showSharePicker = { picked = $0 }
+        performer.showMetadata = { shown = $0 }
+        performer.perform(.shareMore, on: [a])
+        performer.perform(.metadata, on: [a])
+        XCTAssertEqual(picked, [a])
+        XCTAssertEqual(shown, [a])
+    }
+
+    func testAvailableActionsLeaveOutServicesThatCantHelp() throws {
+        let text = try file("notes.txt")
+        let fake = FakeService()
+        let onlyMail = FileAction.available(for: [text]) { $0 == .composeEmail ? fake.make($0) : nil }
+        XCTAssertEqual(onlyMail.filter { $0.group != nil }, [.mail, .shareMore])
+        XCTAssertEqual(onlyMail.filter { $0.group == nil }.count, 6, "the other actions always work")
+
+        let everything = FileAction.available(for: [text]) { fake.make($0) }
+        XCTAssertFalse(everything.contains(.photos), "Photos only takes pictures and videos")
+        let png = try makeImage("photo.png", in: folder).url
+        XCTAssertTrue(FileAction.available(for: [png]) { fake.make($0) }.contains(.photos))
     }
 
     func testKeyAndTerminalSettingsArePersisted() throws {

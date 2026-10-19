@@ -496,11 +496,14 @@ one starts.
   photo 3.jpg with no UI. Not verified: the extension can't be invoked
   without Finder, so you tested it by hand. 55 app tests and 47 core tests.
 - **Three rings (2026-10-19, after the milestones).** At your request,
-  the wheel now works like the public description at tangerineformac.com.
+  the wheel now works like the public description of the product that inspired it.
   - Start dragging, then *tap* ⇧ for Convert formats, ⌘ for File tools or ⌃
     for File actions. Keys held when the drag starts don't count.
   - Another key, or scrolling (one ring per trackpad swipe or wheel notch),
-    switches rings. The wheel stays open until the drop.
+    switches rings. The wheel stays open until the drop. At your later
+    request, the rings are in the order Actions, Tools, Convert, and
+    scrolling up goes to the next one (it used to be scrolling down, with
+    Convert first).
   - The keys can be changed in Settings; choosing one that's in use swaps
     the two.
   - The six file actions (AirDrop, Float shelf, Copy, Move…, Copy Path,
@@ -514,6 +517,29 @@ one starts.
 - **Test and verify: done (2026-10-19).** A clean rebuild passes 104 tests
   (47 core, 57 app). The Release build was checked. The full feature table
   is in [verification.md](verification.md).
+- **Sharing, cropping and metadata (2026-10-19, after the milestones).**
+  At your request:
+  - **Share** is a group in the Actions ring. Its sub-ring has AirDrop,
+    Mail, Messages, Notes, Photos (for pictures and videos), and More…,
+    which opens the system share picker with every service and extension.
+    Services that aren't on the Mac, or can't take the files, are left out.
+    In the menus, Actions starts with the system's own Share… item.
+  - **Crop** is a group in the Tools ring and menu. It has Square, 4:3, 3:2,
+    16:9, 3:4, 2:3 and 9:16, each cropping the centre. A shape the image
+    already has isn't offered. Custom… opens a crop editor: drag the
+    handles or the whole region, choose a shape, or type an exact output
+    size (the crop is then scaled to it). The editor steps through a
+    selection with Crop & Next and Skip. Crops are saved beside the
+    original like any other tool: upright, with metadata unless Settings
+    says otherwise, and every frame of an animation.
+  - **Metadata** is a new action. It opens a window with the file's
+    details: kind, size, dates and download source; then camera, lens,
+    exposure, location and caption for images; tracks, codecs and tags
+    for audio and video; or pages, author and security for PDFs. It has
+    Copy All, and Remove Metadata for tagged images, which saves a clean
+    copy. It's for viewing only: editing tags isn't built.
+  - Everything is read on this Mac. Locations are shown as coordinates,
+    with no map, because a map would need the network.
 
 Sample files are generated, never downloaded: `sips` (images), `afconvert`
 (audio), `textutil` (documents), `AVAssetWriter` code (video with known

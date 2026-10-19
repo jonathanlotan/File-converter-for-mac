@@ -14,9 +14,14 @@ enum RingMode: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    /// The ring `steps` away, wrapping around (used when scrolling).
+    /// The rings in the order scrolling goes through them, and the order of
+    /// the dots in the middle of the wheel: Actions first, Convert last.
+    static let wheelOrder: [RingMode] = [.actions, .tools, .formats]
+
+    /// The ring `steps` away in `wheelOrder`, wrapping around (used when
+    /// scrolling).
     func advanced(by steps: Int) -> RingMode {
-        let all = Self.allCases
+        let all = Self.wheelOrder
         let index = all.firstIndex(of: self)!
         return all[((index + steps) % all.count + all.count) % all.count]
     }

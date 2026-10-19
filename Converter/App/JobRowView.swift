@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// One job in the menu bar menu: what's converting, its progress or result,
@@ -11,7 +12,11 @@ struct JobRowView: View {
     static let height: CGFloat = 46
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: job.inputs[0].url.path))
+                .resizable()
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(job.title)
                     .lineLimit(1)

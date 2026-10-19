@@ -20,6 +20,13 @@ final class RadialMenuModel: ObservableObject {
         case convert(any Converter)
         case action(FileAction)
 
+        var id: String {
+            switch self {
+            case .convert(let converter): return converter.id
+            case .action(let action): return action.id
+            }
+        }
+
         var title: String {
             switch self {
             case .convert(let converter): return converter.title
@@ -36,8 +43,8 @@ final class RadialMenuModel: ObservableObject {
         var converter: (any Converter)?
         /// Set for a file action.
         var action: FileAction?
-        /// Members of a group ("More Formats", "Resize"); empty otherwise.
-        var members: [any Converter] = []
+        /// Members of a group ("More Formats", "Resize", "Share"); empty otherwise.
+        var members: [Target] = []
 
         var isGroup: Bool { converter == nil && action == nil }
     }
@@ -46,6 +53,12 @@ final class RadialMenuModel: ObservableObject {
     let registry: ConverterRegistry
     /// Converter ids the user put first (read each time the ring fills).
     let preferred: () -> [String]
+    /// Which key opens which ring, for the hint in the middle.
+    var ringKeys: () -> RingKeys = { .standard }
+    /// The file actions that work for the dragged files on this Mac.
+    var availableActions: ([URL]) -> [FileAction] = { FileAction.available(for: $0) }
+    /// Drives the appear and disappear animation.
+    @Published var isPresented = false
     @Published private(set) var phase: Phase = .waiting
     @Published private(set) var mode: RingMode = .formats
     @Published private(set) var hit: RadialGeometry.Hit = .outside
@@ -95,9 +108,7 @@ final class RadialMenuModel: ObservableObject {
         let menu = ConversionMenuModel(converters: registry.converters(for: inputs), preferred: preferred())
         rings[.formats] = Self.slices(from: menu.formats)
         rings[.tools] = Self.slices(from: menu.tools)
-        rings[.actions] = FileAction.all.enumerated().map { index, action in
-            Slice(id: index, title: action.title, symbol: action.symbol, action: action)
-        }
+        rings[.actions] = Self.slices(from: availableActions(inputs.map(\.url)))
         phase = .ready
     }
 
@@ -109,12 +120,29 @@ final class RadialMenuModel: ObservableObject {
             case .group(let title, let members):
                 // Slices are narrow: the menu bar's "More Formats" is just "More" here.
                 let short = title == ConversionMenuModel.moreFormatsTitle ? "More" : title
-                return Slice(id: index, title: short, symbol: symbol(forGroup: title), members: members)
+                return Slice(id: index, title: short, symbol: symbol(forGroup: title), members: members.map(Target.convert))
             }
         }
     }
 
-    var openGroupMembers: [any Converter] {
+    /// One slice per action, with grouped actions ("Share") in a sub-ring.
+    private static func slices(from actions: [FileAction]) -> [Slice] {
+        var slices: [Slice] = []
+        for action in actions {
+            guard let group = action.group else {
+                slices.append(Slice(id: slices.count, title: action.title, symbol: action.symbol, action: action))
+                continue
+            }
+            if let index = slices.firstIndex(where: { $0.isGroup && $0.title == group }) {
+                slices[index].members.append(.action(action))
+            } else {
+                slices.append(Slice(id: slices.count, title: group, symbol: symbol(forGroup: group), members: [.action(action)]))
+            }
+        }
+        return slices
+    }
+
+    var openGroupMembers: [Target] {
         openGroup.map { slices[$0].members } ?? []
     }
 
@@ -156,7 +184,7 @@ final class RadialMenuModel: ObservableObject {
             return slices[index].action.map(Target.action)
         case .subSlice(let index):
             let members = openGroupMembers
-            return members.indices.contains(index) ? .convert(members[index]) : nil
+            return members.indices.contains(index) ? members[index] : nil
         case .center, .outside:
             return nil
         }
@@ -176,7 +204,8 @@ final class RadialMenuModel: ObservableObject {
             case .convert(let converter):
                 return (converter.title, OutputPreview.name(of: converter, for: inputs) ?? "\(inputs.count) files")
             case .action(let action):
-                return (action.title, inputs.count == 1 ? inputs[0].url.lastPathComponent : "\(inputs.count) items")
+                let title = action == .shareMore ? "Share…" : action.title
+                return (title, inputs.count == 1 ? inputs[0].url.lastPathComponent : "\(inputs.count) items")
             case nil:
                 if case .slice(let index) = hit, slices[index].isGroup { return (slices[index].title, nil) }
                 return (inputs.count == 1 ? inputs[0].url.lastPathComponent : "\(inputs.count) items", nil)
@@ -196,6 +225,7 @@ final class RadialMenuModel: ObservableObject {
         switch converter.id {
         case "image.compress", "video.compress", "pdf.compress": return "arrow.down.right.and.arrow.up.left"
         case "image.stripMetadata": return "eye.slash"
+        case let id where id.hasPrefix("image.crop."): return "crop"
         case "ocr.text": return "text.viewfinder"
         case "video.removeAudio": return "speaker.slash"
         case "pdf.split", "pdf.merge", "image.combinePDF": return "doc.on.doc"
@@ -210,6 +240,8 @@ final class RadialMenuModel: ObservableObject {
     private static func symbol(forGroup title: String) -> String? {
         switch title {
         case "Resize": return "arrow.up.left.and.arrow.down.right"
+        case "Crop": return "crop"
+        case FileAction.shareGroup: return "square.and.arrow.up"
         case "Audio": return "waveform"
         case "Archive": return "archivebox"
         default: return "ellipsis"

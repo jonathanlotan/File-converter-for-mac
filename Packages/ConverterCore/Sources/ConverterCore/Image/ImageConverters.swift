@@ -6,5 +6,6 @@ public enum ImageConverters {
         ImageFormat.all.map { ImageFormatConverter(format: $0) as any Converter }
         + [AnimatedImageToVideoConverter(.mp4), AnimatedImageToVideoConverter(.mov)]
         + ResizeImageConverter.presets.map { $0 as any Converter }
+        + CropImageConverter.presets.map { $0 as any Converter }
         + [CompressImageConverter(), StripImageMetadataConverter(), CombineImagesToPDFConverter()]
 }

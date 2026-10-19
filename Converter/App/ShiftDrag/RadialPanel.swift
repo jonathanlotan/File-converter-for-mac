@@ -75,11 +75,13 @@ final class RadialPanel: NSPanel {
         ringCenter = center
         setFrame(NSRect(x: center.x - g.panelSide / 2, y: center.y - g.panelSide / 2,
                         width: g.panelSide, height: g.panelSide), display: false)
-        alphaValue = 0
+        // The wheel springs in (or just fades, with Reduce Motion) on the
+        // next frame, once the window is up.
+        model.isPresented = false
+        alphaValue = 1
         orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.12
-            animator().alphaValue = 1
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.model.isPresented = true }
         }
         // Scrolls over other windows (the wheel may not be under the
         // pointer) still switch rings. Mouse monitors need no permission.
@@ -105,16 +107,13 @@ final class RadialPanel: NSPanel {
         scrollMonitor = nil
         guard isVisible else { return }
         let shown = generation
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.1
-            animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, self.generation == shown else { return }
-                self.orderOut(nil)
-                self.model.reset()
-            }
-        })
+        model.isPresented = false
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 180_000_000) // let the wheel animate away
+            guard let self, self.generation == shown else { return }
+            self.orderOut(nil)
+            self.model.reset()
+        }
         log.notice("wheel hidden")
     }
 
@@ -268,7 +267,8 @@ struct RingScroller {
     private var switchedThisSwipe = false
     private var lastWheelSwitch: TimeInterval = -.infinity
 
-    /// +1 (next ring), -1 (previous) or nil (no change yet).
+    /// +1 (next ring), -1 (previous) or nil (no change yet). Scrolling up
+    /// (positive delta) goes to the next ring.
     mutating func steps(for sample: ScrollSample) -> Int? {
         guard !sample.isMomentum else { return nil }
         if sample.isPrecise {
@@ -280,10 +280,10 @@ struct RingScroller {
             accumulated += sample.deltaY
             guard abs(accumulated) >= Self.trackpadDistance else { return nil }
             switchedThisSwipe = true
-            return accumulated < 0 ? 1 : -1
+            return accumulated > 0 ? 1 : -1
         }
         guard sample.deltaY != 0, sample.time - lastWheelSwitch >= Self.wheelPause else { return nil }
         lastWheelSwitch = sample.time
-        return sample.deltaY < 0 ? 1 : -1
+        return sample.deltaY > 0 ? 1 : -1
     }
 }

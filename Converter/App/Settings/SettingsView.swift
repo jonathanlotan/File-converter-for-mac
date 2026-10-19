@@ -3,25 +3,48 @@ import ConverterCore
 import ServiceManagement
 import SwiftUI
 
-/// The settings window: launch at login, the Shift-drag switch, favourite
-/// formats, and the quality settings the converters use.
+/// One pane of the settings window: launch at login and the wheel,
+/// favourite formats, and the quality settings the converters use.
+/// `SettingsWindowController` shows each pane as a toolbar tab.
 struct SettingsView: View {
     enum Tab: String, CaseIterable {
         case general, formats, images, media, documents
+
+        var title: String {
+            switch self {
+            case .general: return "General"
+            case .formats: return "Formats"
+            case .images: return "Images"
+            case .media: return "Video & Audio"
+            case .documents: return "Documents"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .general: return "gearshape"
+            case .formats: return "star"
+            case .images: return "photo"
+            case .media: return "film"
+            case .documents: return "doc.text"
+            }
+        }
     }
 
     @ObservedObject var settings: AppSettings
     @ObservedObject var shiftDrag: ShiftDragController
     let registry: ConverterRegistry
-    @State var tab: Tab = .general
+    let tab: Tab
 
     var body: some View {
-        TabView(selection: $tab) {
-            general.tabItem { Label("General", systemImage: "gearshape") }.tag(Tab.general)
-            formats.tabItem { Label("Formats", systemImage: "star") }.tag(Tab.formats)
-            images.tabItem { Label("Images", systemImage: "photo") }.tag(Tab.images)
-            media.tabItem { Label("Video & Audio", systemImage: "film") }.tag(Tab.media)
-            documents.tabItem { Label("Documents", systemImage: "doc.text") }.tag(Tab.documents)
+        Group {
+            switch tab {
+            case .general: general
+            case .formats: formats
+            case .images: images
+            case .media: media
+            case .documents: documents
+            }
         }
         .frame(width: 500)
         .fixedSize(horizontal: false, vertical: true)
@@ -67,6 +90,7 @@ struct SettingsView: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
             Section {
+                Toggle("Show icon in menu bar", isOn: $settings.showMenuBarIcon)
                 Toggle("Show converted files in Finder", isOn: $settings.revealAfterConverting)
                 Picker("Open folders in", selection: $settings.terminalApp) {
                     ForEach(TerminalApp.allCases) { app in
@@ -74,7 +98,7 @@ struct SettingsView: View {
                     }
                 }
             } footer: {
-                Text("Converter works offline. Results are saved next to the original, which is never changed.")
+                Text("Converter works offline. Results are saved next to the original, which is never changed. With the menu bar icon hidden, open Converter again to see these settings.")
                     .font(.callout).foregroundStyle(.secondary)
             }
         }
@@ -205,9 +229,13 @@ struct SettingsView: View {
     }
 }
 
-/// Owns the one settings window and brings it to the front.
+/// Owns the one settings window: a Mac-style settings window with a
+/// toolbar tab per pane. The window takes the selected tab's name and
+/// resizes to fit it; on macOS 26 and later the toolbar is Liquid Glass.
 @MainActor
 final class SettingsWindowController {
+    static let selectedTabKey = "SettingsSelectedTab"
+
     private let settings: AppSettings
     private let shiftDrag: ShiftDragController
     private let registry: ConverterRegistry
@@ -221,17 +249,40 @@ final class SettingsWindowController {
 
     func show() {
         settings.refreshLoginStatus()
-        if window == nil {
-            let view = SettingsView(settings: settings, shiftDrag: shiftDrag, registry: registry)
-            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-            window.title = "Converter Settings"
-            window.styleMask = [.titled, .closable]
-            window.isReleasedWhenClosed = false
-            window.center()
-            self.window = window
-        }
+        if window == nil { window = makeWindow() }
         // A menu bar app isn't active until asked.
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    private func makeWindow() -> NSWindow {
+        let tabs = RememberingTabViewController()
+        tabs.tabStyle = .toolbar
+        for tab in SettingsView.Tab.allCases {
+            let pane = NSHostingController(rootView: SettingsView(settings: settings, shiftDrag: shiftDrag,
+                                                                   registry: registry, tab: tab))
+            pane.sizingOptions = [.preferredContentSize]
+            let item = NSTabViewItem(viewController: pane)
+            item.label = tab.title
+            item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: tab.title)
+            tabs.addTabViewItem(item)
+        }
+        tabs.selectedTabViewItemIndex = min(UserDefaults.standard.integer(forKey: Self.selectedTabKey),
+                                            SettingsView.Tab.allCases.count - 1)
+
+        let window = NSWindow(contentViewController: tabs)
+        window.styleMask = [.titled, .closable]
+        window.toolbarStyle = .preference
+        window.isReleasedWhenClosed = false
+        window.setFrameAutosaveName("ConverterSettings")
+        if !window.setFrameUsingName("ConverterSettings") { window.center() }
+        return window
+    }
+}
+
+/// Reopens on the tab that was last used.
+private final class RememberingTabViewController: NSTabViewController {
+    override var selectedTabViewItemIndex: Int {
+        didSet { UserDefaults.standard.set(selectedTabViewItemIndex, forKey: SettingsWindowController.selectedTabKey) }
     }
 }

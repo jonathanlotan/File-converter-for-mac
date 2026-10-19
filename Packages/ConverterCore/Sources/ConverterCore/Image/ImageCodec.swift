@@ -112,6 +112,42 @@ enum ImageCodec {
         return icon
     }
 
+    /// `region` of `image`, scaled to `size` when one is given. The region
+    /// is in the upright pixels of an image `reference` in size; a frame of
+    /// another size (a smaller icon image) gets the same part of itself.
+    static func crop(_ image: CGImage, to region: CropRegion, reference: PixelSize, scaledTo size: PixelSize?) throws -> CGImage {
+        var rect = region.rect
+        if image.width != reference.width || image.height != reference.height {
+            let sx = Double(image.width) / Double(max(reference.width, 1))
+            let sy = Double(image.height) / Double(max(reference.height, 1))
+            rect = CGRect(x: rect.minX * sx, y: rect.minY * sy, width: rect.width * sx, height: rect.height * sy).integral
+        }
+        // CGImage crops measure from the top-left, like the region.
+        rect = rect.intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        guard !rect.isEmpty, let cropped = image.cropping(to: rect) else {
+            throw ConversionError.encoderFailed("couldn't crop the image")
+        }
+        guard let size, size.width != cropped.width || size.height != cropped.height else { return cropped }
+        return try scaled(cropped, to: size)
+    }
+
+    /// The image redrawn at exactly `size` (no aspect fitting).
+    static func scaled(_ image: CGImage, to size: PixelSize) throws -> CGImage {
+        let alpha = hasAlpha(image)
+        let info = (alpha ? CGImageAlphaInfo.premultipliedLast : .noneSkipLast).rawValue
+        func makeContext(_ space: CGColorSpace) -> CGContext? {
+            CGContext(data: nil, width: size.width, height: size.height, bitsPerComponent: 8,
+                      bytesPerRow: 0, space: space, bitmapInfo: info)
+        }
+        let own = image.colorSpace.flatMap { $0.model == .rgb ? $0 : nil }
+        guard size.width > 0, size.height > 0, let context = own.flatMap(makeContext) ?? makeContext(sRGB)
+        else { throw ConversionError.encoderFailed("couldn't allocate image buffer") }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+        guard let result = context.makeImage() else { throw ConversionError.encoderFailed("couldn't scale the image") }
+        return result
+    }
+
     // MARK: - Metadata and animation
 
     /// EXIF/GPS/IPTC/TIFF properties of a frame, rewritten for an upright,
@@ -182,6 +218,15 @@ enum ImageCodec {
         /// Lossy quality 0...1, used when the format is lossy.
         var quality: Double
         var keepMetadata: Bool
+        /// Applied to each decoded (upright) frame before it's written, e.g.
+        /// a crop.
+        var transform: ((CGImage) throws -> CGImage)? = nil
+
+        /// Frame `index` decoded upright, resized and transformed as requested.
+        func image(from source: CGImageSource, index: Int) throws -> CGImage {
+            let image = try ImageCodec.decode(source, index: index, maxPixelSize: maxPixelSize)
+            return try transform?(image) ?? image
+        }
     }
 
     /// Decodes the requested frames from `source` and writes `request.format`
@@ -207,7 +252,7 @@ enum ImageCodec {
         for (n, index) in request.frames.enumerated() {
             try Task.checkCancellation()
             let sourceProps = properties(source, index)
-            var image = try decode(source, index: index, maxPixelSize: request.maxPixelSize)
+            var image = try request.image(from: source, index: index)
             if !format.supportsAlpha { image = try flattenedOnWhite(image) }
 
             var props: [CFString: Any] = request.keepMetadata && format.carriesMetadata
@@ -245,7 +290,7 @@ enum ImageCodec {
         for (n, index) in request.frames.enumerated() {
             try Task.checkCancellation()
             let props = properties(source, index)
-            let image = try decode(source, index: index, maxPixelSize: request.maxPixelSize)
+            let image = try request.image(from: source, index: index)
             let dpiX = (props[kCGImagePropertyDPIWidth] as? NSNumber)?.doubleValue ?? 72
             let dpiY = (props[kCGImagePropertyDPIHeight] as? NSNumber)?.doubleValue ?? 72
             var box = CGRect(x: 0, y: 0,
@@ -269,7 +314,7 @@ enum ImageCodec {
 
     private static func writeIcon(_ source: CGImageSource, _ request: EncodeRequest, sizes: [Int], to url: URL) throws {
         let index = request.frames.first ?? CGImageSourceGetPrimaryImageIndex(source)
-        let image = try decode(source, index: index, maxPixelSize: request.maxPixelSize)
+        let image = try request.image(from: source, index: index)
         let chosen = iconSizes(sizes, forLongestSide: max(image.width, image.height))
         guard let destination = CGImageDestinationCreateWithURL(url as CFURL, request.format.typeIdentifier as CFString, chosen.count, nil) else {
             throw ConversionError.encoderFailed("this Mac can't write \(request.format.title)")

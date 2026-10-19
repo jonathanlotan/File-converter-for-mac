@@ -1,0 +1,93 @@
+{
+  "color-space-for-untagged-svg-colors": "display-p3",
+  "fill-specializations": [
+    {
+      "value": {
+        "automatic-gradient": "extended-srgb:0.29804,0.33725,0.92157,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.20000,0.22745,0.66667,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "layers": [
+        {
+          "image-name": "arrow.svg",
+          "name": "arrow",
+          "position": {
+            "scale": 1.2,
+            "translation-in-points": [
+              30,
+              -275
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      }
+    },
+    {
+      "layers": [
+        {
+          "image-name": "front-file.svg",
+          "name": "front file",
+          "position": {
+            "scale": 1.18,
+            "translation-in-points": [
+              92,
+              78
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
+      }
+    },
+    {
+      "layers": [
+        {
+          "image-name": "back-file.svg",
+          "name": "back file",
+          "opacity": 0.6,
+          "position": {
+            "scale": 1.18,
+            "translation-in-points": [
+              -102,
+              -18
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.5
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}

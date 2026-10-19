@@ -70,7 +70,7 @@ enum ConversionMenu {
         let heading = inputs.count == 1
             ? "Convert “\(inputs[0].url.lastPathComponent)”"
             : "Convert \(inputs.count) files"
-        menu.addItem(disabledItem(heading))
+        menu.addItem(header(heading))
 
         let model = ConversionMenuModel(converters: converters, preferred: preferred)
         if model.isEmpty {
@@ -81,9 +81,13 @@ enum ConversionMenu {
             // Actions work for any file or folder, convertible or not.
             if let onAction {
                 menu.addItem(.separator())
-                for action in FileAction.all {
+                menu.addItem(header("Actions"))
+                // The system's Share item lists every service, so the
+                // wheel's Share shortcuts aren't repeated here.
+                menu.addItem(shareItem(inputs.map(\.url)))
+                for action in FileAction.all where action.group == nil {
                     let item = ActionMenuItem(title: action.title) { onAction(action) }
-                    item.image = NSImage(systemSymbolName: action.symbol, accessibilityDescription: nil)
+                    MenuIcons.set(action.symbol, on: item)
                     menu.addItem(item)
                 }
             }
@@ -108,6 +112,7 @@ enum ConversionMenu {
         add(model.formats, to: menu)
         if !model.tools.isEmpty {
             menu.addItem(.separator())
+            menu.addItem(header("Tools"))
             add(model.tools, to: menu)
         }
         return menu
@@ -120,6 +125,20 @@ enum ConversionMenu {
             item.toolTip = "Saves “\(name)” next to the original"
         }
         return item
+    }
+
+    /// Share ›, with AirDrop, Mail, Messages, Notes and the rest.
+    static func shareItem(_ urls: [URL]) -> NSMenuItem {
+        let item = SharePicker.shared.menuItem(for: urls)
+        if item.image == nil { MenuIcons.set(FileAction.shareMore.symbol, on: item) }
+        return item
+    }
+
+    /// A section title: the system's section header from macOS 14, a
+    /// greyed-out item before that.
+    static func header(_ title: String) -> NSMenuItem {
+        if #available(macOS 14.0, *) { return .sectionHeader(title: title) }
+        return disabledItem(title)
     }
 
     static func disabledItem(_ title: String) -> NSMenuItem {
@@ -158,5 +177,16 @@ enum OutputPreview {
         let spec = converter.combinesInputs ? converter.output(for: inputs) : converter.output(for: first)
         return OutputNamer.firstAvailable(in: first.url.deletingLastPathComponent(),
                                           base: spec.baseName ?? first.baseName, spec: spec).lastPathComponent
+    }
+}
+
+/// SF Symbols beside menu items, the way the system's own menus use them:
+/// macOS 26 shows icons in menus; earlier versions don't, so no icon is set
+/// there; on macOS 27 AppKit decides when to show them (the item's
+/// `preferredImageVisibility` stays `.automatic`, usually hidden).
+enum MenuIcons {
+    static func set(_ symbol: String, on item: NSMenuItem) {
+        guard #available(macOS 26.0, *) else { return }
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
     }
 }

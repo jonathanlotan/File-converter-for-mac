@@ -117,13 +117,20 @@ struct ShelfView: View {
             .padding(.vertical, 6)
             Divider()
             if model.items.isEmpty {
-                Text("Drop files here to keep them handy.")
-                    .font(.callout).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 8) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundStyle(.tertiary)
+                    Text("Drop files here to keep them handy.")
+                        .font(.callout).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    VStack(spacing: 2) {
-                        ForEach(model.items, id: \.self) { url in row(url) }
+                    LazyVStack(spacing: 2) {
+                        ForEach(model.items, id: \.self) { url in ShelfRow(url: url) { model.remove(url) } }
                     }
                     .padding(6)
                 }
@@ -140,23 +147,53 @@ struct ShelfView: View {
         }
     }
 
-    private func row(_ url: URL) -> some View {
-        HStack(spacing: 8) {
+}
+
+/// One file on the shelf: icon, name, kind and size. Drag it out to use it.
+private struct ShelfRow: View {
+    let url: URL
+    let onRemove: () -> Void
+    @State private var hovering = false
+
+    private var details: String {
+        let values = try? url.resourceValues(forKeys: [.localizedTypeDescriptionKey, .fileSizeKey, .isDirectoryKey])
+        let kind = values?.localizedTypeDescription ?? ""
+        guard values?.isDirectory != true, let size = values?.fileSize else { return kind }
+        return "\(kind) · \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))"
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
                 .resizable()
-                .frame(width: 28, height: 28)
-            Text(url.lastPathComponent)
-                .lineLimit(1)
-                .truncationMode(.middle)
+                .frame(width: 32, height: 32)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(url.lastPathComponent)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(details)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
             Spacer(minLength: 4)
-            Button { model.remove(url) } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
-                .buttonStyle(.plain)
-                .help("Remove from the shelf")
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .opacity(hovering ? 1 : 0)
+            .help("Remove from the shelf")
+            .accessibilityLabel("Remove \(url.lastPathComponent) from the shelf")
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        // Rounded inside the window's own corners, like a sidebar selection.
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(Color.primary.opacity(hovering ? 0.07 : 0)))
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
         .onDrag { NSItemProvider(object: url as NSURL) }
         .help(url.path)
+        .accessibilityElement(children: .combine)
     }
 }

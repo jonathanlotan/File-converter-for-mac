@@ -1,5 +1,6 @@
 import AppKit
 import ConverterCore
+import UniformTypeIdentifiers
 
 /// Something done *with* files rather than a conversion of them. Works for
 /// any file or folder, including ones nothing can convert.
@@ -7,15 +8,58 @@ struct FileAction: Hashable, Identifiable {
     let id: String
     let title: String
     let symbol: String
+    /// Name of the sub-ring this action is grouped under ("Share").
+    var group: String?
 
-    static let airDrop = FileAction(id: "action.airdrop", title: "AirDrop", symbol: "dot.radiowaves.left.and.right")
+    static let airDrop = FileAction(id: "action.airdrop", title: "AirDrop", symbol: "dot.radiowaves.left.and.right",
+                                    group: shareGroup)
+    static let mail = FileAction(id: "action.share.mail", title: "Mail", symbol: "envelope", group: shareGroup)
+    static let messages = FileAction(id: "action.share.messages", title: "Messages", symbol: "message", group: shareGroup)
+    static let notes = FileAction(id: "action.share.notes", title: "Notes", symbol: "note.text", group: shareGroup)
+    static let photos = FileAction(id: "action.share.photos", title: "Photos", symbol: "photo.on.rectangle", group: shareGroup)
+    /// The system's share picker, with every service and extension.
+    static let shareMore = FileAction(id: "action.share", title: "More…", symbol: "square.and.arrow.up", group: shareGroup)
+    static let metadata = FileAction(id: "action.metadata", title: "Metadata", symbol: "info.circle")
     static let float = FileAction(id: "action.float", title: "Float", symbol: "tray")
     static let copy = FileAction(id: "action.copy", title: "Copy", symbol: "doc.on.doc")
     static let move = FileAction(id: "action.move", title: "Move…", symbol: "folder")
     static let copyPath = FileAction(id: "action.copyPath", title: "Copy Path", symbol: "link")
     static let terminal = FileAction(id: "action.terminal", title: "Terminal", symbol: "terminal")
 
-    static let all: [FileAction] = [airDrop, float, copy, move, copyPath, terminal]
+    static let shareGroup = "Share"
+    static let sharing: [FileAction] = [airDrop, mail, messages, notes, photos, shareMore]
+    static let all: [FileAction] = sharing + [metadata, float, copy, move, copyPath, terminal]
+
+    /// The system sharing service behind a Share action. Notes has no
+    /// public name; its extension's identifier is used, and Notes is simply
+    /// left out if a later macOS renames it (it's still under More…).
+    var sharingService: NSSharingService.Name? {
+        switch id {
+        case Self.airDrop.id: return .sendViaAirDrop
+        case Self.mail.id: return .composeEmail
+        case Self.messages.id: return .composeMessage
+        case Self.notes.id: return NSSharingService.Name("com.apple.Notes.SharingExtension")
+        case Self.photos.id: return .addToIPhoto
+        default: return nil
+        }
+    }
+
+    /// The actions that can handle `urls` on this Mac: share services that
+    /// aren't installed, or can't take these files, are left out.
+    @MainActor
+    static func available(for urls: [URL],
+                          service: (NSSharingService.Name) -> NSSharingService? = { NSSharingService(named: $0) }) -> [FileAction] {
+        all.filter { action in
+            guard let name = action.sharingService else { return true }
+            if action == .photos && !urls.allSatisfy(isPhotoOrVideo) { return false }
+            return service(name)?.canPerform(withItems: urls) ?? false
+        }
+    }
+
+    private static func isPhotoOrVideo(_ url: URL) -> Bool {
+        guard let type = try? url.resourceValues(forKeys: [.contentTypeKey]).contentType else { return false }
+        return type.conforms(to: .image) || type.conforms(to: .movie)
+    }
 }
 
 /// Carries out file actions. System pieces (pasteboard, folder picker,
@@ -31,6 +75,12 @@ final class FileActionPerformer {
     }
     /// Tells the user something went wrong (an alert; tests capture it).
     var report: @MainActor (String, String) -> Void = FileActionPerformer.alert
+    /// Looks up a system sharing service (tests supply their own).
+    var sharingService: @MainActor (NSSharingService.Name) -> NSSharingService? = { NSSharingService(named: $0) }
+    /// Shows the system share picker at the pointer.
+    var showSharePicker: @MainActor ([URL]) -> Void = { SharePicker.shared.show($0, at: NSEvent.mouseLocation) }
+    /// Opens the metadata window.
+    var showMetadata: @MainActor ([URL]) -> Void = { _ in }
 
     private let shelf: ShelfController?
     private let settings: AppSettings?
@@ -43,24 +93,28 @@ final class FileActionPerformer {
     func perform(_ action: FileAction, on urls: [URL]) {
         guard !urls.isEmpty else { return }
         switch action {
-        case .airDrop: airDrop(urls)
+        case .shareMore: showSharePicker(urls)
+        case .metadata: showMetadata(urls)
         case .float: shelf?.add(urls)
         case .copy: copy(urls)
         case .move: if let folder = chooseFolder() { move(urls, to: folder) }
         case .copyPath: copyPaths(urls)
         case .terminal: openInTerminal(urls)
-        default: break
+        default: if action.sharingService != nil { share(urls, with: action) }
         }
     }
 
     // MARK: - Actions
 
-    func airDrop(_ urls: [URL]) {
-        NSApp.activate(ignoringOtherApps: true)
-        guard let service = NSSharingService(named: .sendViaAirDrop), service.canPerform(withItems: urls) else {
-            report("AirDrop isn't available", "Turn on AirDrop in Control Center and try again.")
+    /// Hands the files to AirDrop, Mail, Messages, Notes or Photos.
+    func share(_ urls: [URL], with action: FileAction) {
+        guard let name = action.sharingService, let service = sharingService(name), service.canPerform(withItems: urls) else {
+            let advice = action == .airDrop ? "Turn on AirDrop in Control Center and try again."
+                                            : "Try More… to choose another way to share."
+            report("\(action.title) can't share these files", advice)
             return
         }
+        NSApp.activate(ignoringOtherApps: true)
         service.perform(withItems: urls)
     }
 

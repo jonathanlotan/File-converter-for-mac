@@ -3,7 +3,7 @@ import ImageIO
 
 /// The format an image tool writes: the input's own format when this Mac can
 /// encode it, otherwise PNG (if transparent) or JPEG.
-private func toolOutputFormat(for info: ImageInfo) -> ImageFormat {
+func toolOutputFormat(for info: ImageInfo) -> ImageFormat {
     if let same = ImageFormat.existing(for: info.typeIdentifier) { return same }
     return info.hasAlpha ? .png : .jpeg
 }

@@ -1,41 +1,58 @@
 import SwiftUI
 
-/// Draws the radial menu: a ring of slices, a sub-ring for an open group,
-/// and a caption in the middle (the file being dragged, the name the output
-/// will get, or "Cancel"). Hit-testing lives in `RadialGeometry`; this view
-/// only paints `RadialMenuModel`'s state.
+/// Draws the wheel: glass (or material) surfaces from `WheelBackground`,
+/// then on top the selection pill, dividers, labels and the caption in the
+/// middle (the ring's name and key, what a drop would do, or "Cancel").
+/// Hit-testing lives in `RadialGeometry`; this view only paints
+/// `RadialMenuModel`'s state.
 struct RadialMenuView: View {
     @ObservedObject var model: RadialMenuModel
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Space between the ring's inner edge and the centre disc.
+    static let centerGap: CGFloat = 6
+    /// How far the selection pill sits inside its slice.
+    static let selectionInset: CGFloat = 4
 
     private var geometry: RadialGeometry { model.geometry }
 
     var body: some View {
-        Canvas { context, size in
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            drawRing(in: &context, center: center)
-            drawSubRing(in: &context, center: center)
-            drawCenter(in: &context, center: center)
+        ZStack {
+            WheelBackground(model: model)
+            Canvas { context, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                drawRing(in: &context, center: center)
+                drawSubRing(in: &context, center: center)
+                drawCenter(in: &context, center: center)
+            }
+            // Switching rings cross-fades the labels.
+            .id(model.mode)
+            .transition(.opacity)
         }
         .frame(width: geometry.panelSide, height: geometry.panelSide)
+        .scaleEffect(model.isPresented || reduceMotion ? 1 : 0.86)
+        .opacity(model.isPresented ? 1 : 0)
+        .animation(reduceMotion ? .easeOut(duration: 0.12) : .spring(duration: 0.3, bounce: 0.22), value: model.isPresented)
+        .animation(.easeInOut(duration: 0.16), value: model.mode)
         .accessibilityElement()
-        .accessibilityLabel("Conversion menu")
+        .accessibilityLabel("\(model.mode.title) wheel")
         .accessibilityValue(model.caption.title)
     }
 
     // MARK: - Colours
 
-    private var surface: Color { Color(nsColor: .windowBackgroundColor).opacity(0.97) }
-    private var divider: Color { Color.primary.opacity(0.10) }
-    private var highlight: Color { Color.accentColor }
+    private var highlight: Color { .accentColor }
+    private var divider: Color { Color.primary.opacity(contrast == .increased ? 0.35 : 0.12) }
+    private var edge: Color { Color.primary.opacity(contrast == .increased ? 0.5 : 0) }
 
     // MARK: - Ring
 
     private func drawRing(in context: inout GraphicsContext, center: CGPoint) {
-        let ring = Self.sector(center: center, inner: geometry.innerRadius, outer: geometry.outerRadius,
-                               from: 0, to: 2 * .pi)
-        context.drawLayer { layer in
-            layer.addFilter(.shadow(color: .black.opacity(0.28), radius: 10, y: 3))
-            layer.fill(ring, with: .color(surface))
+        if contrast == .increased {
+            let r = geometry.outerRadius
+            context.stroke(Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: 2 * r, height: 2 * r)),
+                           with: .color(edge), lineWidth: 1)
         }
         guard model.phase == .ready else { return }
 
@@ -47,22 +64,31 @@ struct RadialMenuView: View {
             let isHit = model.hit == .slice(slice.id)
             let isOpen = model.openGroup == slice.id
             if isHit || isOpen {
-                let path = Self.sector(center: center, inner: geometry.innerRadius, outer: geometry.outerRadius,
-                                       from: mid - span / 2, to: mid + span / 2)
-                context.fill(path, with: .color(isHit && !slice.isGroup ? highlight : highlight.opacity(0.35)))
+                context.fill(selection(center: center, inner: geometry.innerRadius, outer: geometry.outerRadius,
+                                       mid: mid, span: span),
+                             with: .color(isHit && !slice.isGroup ? highlight : highlight.opacity(0.28)))
             }
             if count > 1 {
+                let angle = mid - span / 2
                 var line = Path()
-                line.move(to: RadialGeometry.viewPoint(angle: mid - span / 2, radius: geometry.innerRadius, center: center))
-                line.addLine(to: RadialGeometry.viewPoint(angle: mid - span / 2, radius: geometry.outerRadius, center: center))
+                line.move(to: RadialGeometry.viewPoint(angle: angle, radius: geometry.innerRadius + 10, center: center))
+                line.addLine(to: RadialGeometry.viewPoint(angle: angle, radius: geometry.outerRadius - 10, center: center))
                 context.stroke(line, with: .color(divider), lineWidth: 1)
             }
-            let onAccent = isHit && !slice.isGroup
             drawLabel(slice.title, symbol: slice.symbol, chevron: slice.isGroup,
                       at: RadialGeometry.viewPoint(angle: mid, radius: labelRadius, center: center),
-                      width: min(92, CGFloat(span) * labelRadius - 4), onAccent: onAccent,
+                      width: min(92, CGFloat(span) * labelRadius - 4), onAccent: isHit && !slice.isGroup,
                       fontSize: count > 10 ? 11 : 11.5, in: &context)
         }
+    }
+
+    /// The rounded pill marking a slice, inset from its edges so its corners
+    /// sit concentric with the ring.
+    private func selection(center: CGPoint, inner: CGFloat, outer: CGFloat, mid: Double, span: Double) -> Path {
+        let inset = Self.selectionInset
+        let angularInset = Double(inset / ((inner + outer) / 2))
+        return BandShape.path(center: center, inner: inner + inset, outer: outer - inset,
+                              from: mid - span / 2 + angularInset, to: mid + span / 2 - angularInset, corner: 12)
     }
 
     private func drawSubRing(in context: inout GraphicsContext, center: CGPoint) {
@@ -71,19 +97,12 @@ struct RadialMenuView: View {
         let count = model.slices.count
         let span = geometry.subSpan(members: members.count)
         let labelRadius = (geometry.subInnerRadius + geometry.subOuterRadius) / 2
-        let first = geometry.subCenterAngle(member: 0, members: members.count, parent: parent, count: count) - span / 2
-        let arc = Self.sector(center: center, inner: geometry.subInnerRadius, outer: geometry.subOuterRadius,
-                              from: first, to: first + span * Double(members.count))
-        context.drawLayer { layer in
-            layer.addFilter(.shadow(color: .black.opacity(0.25), radius: 8, y: 2))
-            layer.fill(arc, with: .color(surface))
-        }
         for (index, member) in members.enumerated() {
             let mid = geometry.subCenterAngle(member: index, members: members.count, parent: parent, count: count)
             let isHit = model.hit == .subSlice(index)
             if isHit {
-                context.fill(Self.sector(center: center, inner: geometry.subInnerRadius, outer: geometry.subOuterRadius,
-                                         from: mid - span / 2, to: mid + span / 2), with: .color(highlight))
+                context.fill(selection(center: center, inner: geometry.subInnerRadius, outer: geometry.subOuterRadius,
+                                       mid: mid, span: span), with: .color(highlight))
             }
             drawLabel(member.title, symbol: nil, chevron: false,
                       at: RadialGeometry.viewPoint(angle: mid, radius: labelRadius, center: center),
@@ -94,17 +113,20 @@ struct RadialMenuView: View {
     // MARK: - Centre
 
     private func drawCenter(in context: inout GraphicsContext, center: CGPoint) {
-        let r = geometry.innerRadius - 4
+        let r = geometry.innerRadius - Self.centerGap
         let disc = Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: 2 * r, height: 2 * r))
+        // A quiet well on the glass (a fill, not more glass), darker when a
+        // drop here would cancel.
         let cancelling = model.hit == .center && model.phase == .ready
-        context.fill(disc, with: .color(cancelling ? Color.secondary.opacity(0.35) : surface))
-        context.stroke(disc, with: .color(divider), lineWidth: 1)
+        context.fill(disc, with: .color(Color.primary.opacity(cancelling ? 0.14 : 0.05)))
+        context.stroke(disc, with: .color(contrast == .increased ? edge : divider), lineWidth: 1)
 
-        // Which ring this is, and dots showing where it sits among the three.
-        let ringLabel = context.resolve(Text(model.mode.title.uppercased())
+        // The ring's name with its key, and dots showing where it sits among the three.
+        let keyGlyph = model.ringKeys().key(for: model.mode).map { "\($0.symbol) " } ?? ""
+        let ringLabel = context.resolve(Text(keyGlyph + model.mode.title.uppercased())
             .font(.system(size: 8.5, weight: .bold)).tracking(0.8).foregroundColor(.secondary))
         context.draw(ringLabel, at: CGPoint(x: center.x, y: center.y - r + 13))
-        for (index, mode) in RingMode.allCases.enumerated() {
+        for (index, mode) in RingMode.wheelOrder.enumerated() {
             let x = center.x + CGFloat(index - 1) * 9
             let dot = Path(ellipseIn: CGRect(x: x - 2.5, y: center.y + r - 15, width: 5, height: 5))
             context.fill(dot, with: .color(mode == model.mode ? highlight : Color.secondary.opacity(0.35)))
@@ -122,7 +144,7 @@ struct RadialMenuView: View {
                                           width: size.width, height: size.height))
     }
 
-    // MARK: - Helpers
+    // MARK: - Labels
 
     /// Draws an optional symbol above a label, centred on `point`. Labels
     /// wrap between words to fit `width`, but never break inside a word.
@@ -152,22 +174,5 @@ struct RadialMenuView: View {
             top += image.size.height + gap
         }
         context.draw(resolved, in: CGRect(x: point.x - size.width / 2, y: top, width: size.width, height: size.height))
-    }
-
-    /// An annular sector between two clockwise-from-top angles.
-    static func sector(center: CGPoint, inner: CGFloat, outer: CGFloat, from start: Double, to end: Double) -> Path {
-        var path = Path()
-        let steps = max(2, Int(abs(end - start) / (.pi / 90)))
-        for k in 0...steps {
-            let angle = start + (end - start) * Double(k) / Double(steps)
-            let point = RadialGeometry.viewPoint(angle: angle, radius: outer, center: center)
-            k == 0 ? path.move(to: point) : path.addLine(to: point)
-        }
-        for k in (0...steps).reversed() {
-            let angle = start + (end - start) * Double(k) / Double(steps)
-            path.addLine(to: RadialGeometry.viewPoint(angle: angle, radius: inner, center: center))
-        }
-        path.closeSubpath()
-        return path
     }
 }

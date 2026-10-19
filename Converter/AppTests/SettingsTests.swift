@@ -44,8 +44,11 @@ final class SettingsTests: XCTestCase {
         settings.options.audioBitRate = 320
         settings.preferredFormats[FormatKind.image.rawValue] = "image.tga"
         settings.revealAfterConverting = true
+        XCTAssertTrue(settings.showMenuBarIcon, "shown by default")
+        settings.showMenuBarIcon = false
 
         let reloaded = AppSettings(defaults: defaults, loginItem: FakeLoginItem())
+        XCTAssertFalse(reloaded.showMenuBarIcon)
         XCTAssertEqual(reloaded.options.imageQuality, 0.7)
         XCTAssertEqual(reloaded.options.videoCompression, .smaller)
         XCTAssertEqual(reloaded.options.audioBitRate, 320)

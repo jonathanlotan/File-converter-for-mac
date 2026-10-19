@@ -6,7 +6,14 @@ import ConverterCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let queue = JobQueue()
     /// ConverterCore's converters plus the app's own, which need AppKit.
-    let registry = ConverterRegistry(ConverterRegistry.standard.everything + [RichTextPDFConverter()])
+    private(set) lazy var registry = ConverterRegistry(ConverterRegistry.standard.everything + [
+        RichTextPDFConverter(),
+        CustomCropTool { [weak self] inputs in self?.cropEditor.open(inputs) },
+    ])
+    private(set) lazy var cropEditor = CropEditorController(queue: queue)
+    private(set) lazy var metadataWindow = MetadataWindowController { [weak self] input in
+        self?.queue.enqueue(StripImageMetadataConverter(), on: [input])
+    }
     let settings = AppSettings()
     /// The "Float" shelf, shared by the wheel and the menus.
     let shelf = ShelfController()
@@ -25,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let settings = settings
         let actions = FileActionPerformer(shelf: shelf, settings: settings)
+        actions.showMetadata = { [weak self] urls in self?.metadataWindow.show(urls) }
         let shiftDrag = ShiftDragController(queue: queue, registry: registry, preferred: { settings.preferredFormatIDs },
                                             ringKeys: { settings.ringKeys }, actions: actions)
         self.shiftDrag = shiftDrag
@@ -39,6 +47,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         servicesProvider = services
         NSApp.servicesProvider = services
         NSUpdateDynamicServices()
+    }
+
+    /// Opening the app while it runs (Finder, Spotlight, Launchpad) shows
+    /// Settings, so it's reachable even with the menu bar icon hidden.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        settingsWindow?.show()
+        return false
     }
 
     /// Files sent by Finder: Open With, a drop on the app's icon, or the

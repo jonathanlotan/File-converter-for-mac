@@ -84,11 +84,45 @@ final class RadialMenuModelTests: XCTestCase {
         XCTAssertEqual(formats.last, "More")
 
         model.setMode(.tools)
-        XCTAssertEqual(model.slices.map(\.title), ["Resize", "Compress", "Remove Metadata", "Recognize Text", "Archive"])
+        XCTAssertEqual(model.slices.map(\.title), ["Resize", "Crop", "Compress", "Remove Metadata", "Recognize Text", "Archive"])
         XCTAssertTrue(model.slices.first { $0.title == "Resize" }?.isGroup ?? false)
 
         model.setMode(.actions)
-        XCTAssertEqual(model.slices.map(\.title), ["AirDrop", "Float", "Copy", "Move…", "Copy Path", "Terminal"])
+        XCTAssertEqual(model.slices.map(\.title), ["Share", "Metadata", "Float", "Copy", "Move…", "Copy Path", "Terminal"])
+    }
+
+    func testShareIsASubRingOfServices() {
+        let model = RadialMenuModel()
+        model.availableActions = { _ in FileAction.all }
+        model.load([photo])
+        model.setMode(.actions)
+        XCTAssertTrue(model.slices[0].isGroup)
+        model.hover(at: point(onSlice: 0, of: model))
+        XCTAssertNil(model.target, "a group isn't something to drop on")
+        model.openGroup(0)
+        XCTAssertEqual(model.openGroupMembers.map(\.title), ["AirDrop", "Mail", "Messages", "Notes", "Photos", "More…"])
+
+        let g = model.geometry
+        let r = (g.subInnerRadius + g.subOuterRadius) / 2
+        func member(_ index: Int) -> CGPoint {
+            let a = g.subCenterAngle(member: index, members: model.openGroupMembers.count, parent: 0, count: model.slices.count)
+            return CGPoint(x: r * CGFloat(sin(a)), y: r * CGFloat(cos(a)))
+        }
+        model.hover(at: member(1))
+        guard case .action(let mail) = model.target else { return XCTFail("expected Mail") }
+        XCTAssertEqual(mail, .mail)
+        model.hover(at: member(5))
+        XCTAssertEqual(model.caption.title, "Share…", "More… opens the system share picker")
+    }
+
+    func testShareLeavesOutServicesThatCantTakeTheFiles() {
+        let model = RadialMenuModel()
+        model.availableActions = { urls in FileAction.all.filter { $0 != .notes && $0 != .photos } }
+        model.load([photo])
+        model.setMode(.actions)
+        model.hover(at: point(onSlice: 0, of: model))
+        model.openGroup(0)
+        XCTAssertEqual(model.openGroupMembers.map(\.title), ["AirDrop", "Mail", "Messages", "More…"])
     }
 
     func testSwitchingRingsClearsTheHover() {
@@ -98,10 +132,10 @@ final class RadialMenuModelTests: XCTestCase {
         XCTAssertNotNil(model.target)
         model.setMode(.actions)
         XCTAssertNil(model.target, "nothing is selected until the pointer moves")
-        model.hover(at: point(onSlice: 0, of: model))
+        model.hover(at: point(onSlice: 1, of: model))
         guard case .action(let action) = model.target else { return XCTFail("expected an action") }
-        XCTAssertEqual(action, .airDrop)
-        XCTAssertEqual(model.caption.title, "AirDrop")
+        XCTAssertEqual(action, .metadata)
+        XCTAssertEqual(model.caption.title, "Metadata")
         XCTAssertEqual(model.caption.detail, "photo.jpg")
     }
 
@@ -116,7 +150,7 @@ final class RadialMenuModelTests: XCTestCase {
         model.setMode(.tools)
         XCTAssertEqual(model.slices.first?.title, "ZIP")
         model.setMode(.actions)
-        XCTAssertEqual(model.slices.count, 6)
+        XCTAssertEqual(model.slices.count, 7)
     }
 
     func testHoverPicksASliceAndNamesTheOutput() {
@@ -164,7 +198,7 @@ final class RadialMenuModelTests: XCTestCase {
         model.hover(at: CGPoint(x: 0, y: 100))
         XCTAssertNil(model.target)
         model.setMode(.actions)
-        XCTAssertEqual(model.slices.count, 6, "actions work for any files")
+        XCTAssertEqual(model.slices.count, 7, "actions work for any files")
     }
 
     private func targetID(_ model: RadialMenuModel) -> String? {
@@ -236,9 +270,11 @@ final class RadialPanelDropTests: XCTestCase {
         drag.location = windowPoint(angle: 0, radius: ringRadius)
         _ = panel.dropView.draggingEntered(drag)
         panel.model.setMode(.actions)
+        XCTAssertEqual(panel.dropView.draggingUpdated(drag), [], "Share is a group: open it to pick a service")
+        drag.location = windowPoint(angle: 2 * .pi / 7, radius: ringRadius) // slice 1 of 7
         XCTAssertEqual(panel.dropView.draggingUpdated(drag), .copy)
         XCTAssertTrue(panel.dropView.performDragOperation(drag))
-        XCTAssertEqual(picked.map(\.0), ["action.airdrop"])
+        XCTAssertEqual(picked.map(\.0), ["action.metadata"])
     }
 
     func testDropWhileCommandIsHeldIsAcceptedWithoutMoving() {
@@ -278,5 +314,32 @@ final class RadialPanelDropTests: XCTestCase {
         XCTAssertEqual(panel.dropView.draggingUpdated(drag), .copy)
         XCTAssertTrue(panel.dropView.performDragOperation(drag))
         XCTAssertEqual(picked.map(\.0), ["image.ico"])
+    }
+}
+
+/// Containment is checked with Core Graphics' non-zero rule, which is how
+/// the shapes are filled and clipped. (SwiftUI's `Path.contains` can
+/// disagree with it for shapes with holes.)
+final class WheelShapeTests: XCTestCase {
+    let rect = CGRect(x: 0, y: 0, width: 400, height: 400)
+
+    func testARoundedSliceCoversOnlyItsSlice() {
+        // A quarter at the top: -45°...+45° from 12 o'clock.
+        let band = BandShape(innerRadius: 60, outerRadius: 140, startAngle: -.pi / 4, endAngle: .pi / 4, cornerRadius: 12)
+            .path(in: rect)
+        XCTAssertTrue(band.cgPath.contains(CGPoint(x: 200, y: 100), using: .winding), "middle of the slice")
+        XCTAssertFalse(band.cgPath.contains(CGPoint(x: 320, y: 200), using: .winding), "the slice to the right")
+        XCTAssertFalse(band.cgPath.contains(CGPoint(x: 200, y: 200), using: .winding), "the centre")
+        // Rounded corners: the exact corner point is cut off.
+        let corner = RadialGeometry.viewPoint(angle: .pi / 4, radius: 139.5, center: CGPoint(x: 200, y: 200))
+        XCTAssertFalse(band.cgPath.contains(corner, using: .winding))
+    }
+
+    func testCornersShrinkForThinBands() {
+        let thin = BandShape(innerRadius: 100, outerRadius: 106, startAngle: 0, endAngle: 0.5, cornerRadius: 40)
+            .path(in: rect)
+        XCTAssertFalse(thin.isEmpty)
+        let mid = RadialGeometry.viewPoint(angle: 0.25, radius: 103, center: CGPoint(x: 200, y: 200))
+        XCTAssertTrue(thin.cgPath.contains(mid, using: .winding), "still a band, not a tangle")
     }
 }
