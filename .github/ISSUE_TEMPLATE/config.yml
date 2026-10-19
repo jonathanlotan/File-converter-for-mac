@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/jonathanlotan/Swivel/discussions
+    about: Ask how to do something, or share an idea, in Discussions.
+  - name: Security problem
+    url: https://github.com/jonathanlotan/Swivel/security/advisories/new
+    about: Report a vulnerability privately.

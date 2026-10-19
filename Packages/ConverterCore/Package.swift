@@ -6,11 +6,11 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [
         .library(name: "ConverterCore", targets: ["ConverterCore"]),
-        .executable(name: "converter-cli", targets: ["converter-cli"]),
+        .executable(name: "swivel", targets: ["swivel"]),
     ],
     targets: [
         .target(name: "ConverterCore"),
-        .executableTarget(name: "converter-cli", dependencies: ["ConverterCore"]),
+        .executableTarget(name: "swivel", dependencies: ["ConverterCore"]),
         .testTarget(name: "ConverterCoreTests", dependencies: ["ConverterCore"]),
     ]
 )

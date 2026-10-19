@@ -1,0 +1,17 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  core:
+    name: Conversion engine
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the swivel command
+        run: make cli
+      - name: Run the engine's tests
+        run: make core-test

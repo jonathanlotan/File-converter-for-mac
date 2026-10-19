@@ -59,7 +59,7 @@ enum RichTextPDF {
         } while NSMaxRange(layout.glyphRange(for: pages[pages.count - 1])) < layout.numberOfGlyphs && pages.count < 10_000
 
         var box = CGRect(origin: .zero, size: pageSize)
-        guard let context = CGContext(url as CFURL, mediaBox: &box, [kCGPDFContextCreator: "Converter"] as CFDictionary) else {
+        guard let context = CGContext(url as CFURL, mediaBox: &box, [kCGPDFContextCreator: "Swivel"] as CFDictionary) else {
             throw ConversionError.encoderFailed("couldn't create the PDF")
         }
         // Resolve dynamic colours (text without an explicit colour) as on

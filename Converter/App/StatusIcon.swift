@@ -30,7 +30,7 @@ enum StatusIcon {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Converter"
+        image.accessibilityDescription = "Swivel"
         return image
     }
 

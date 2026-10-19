@@ -236,6 +236,25 @@ final class ReadmeImageTests: XCTestCase {
         }
     }
 
+    // MARK: - Welcome window
+
+    func testWelcomeWindow() throws {
+        let photo = try XCTUnwrap(PracticeWheel.samplePhoto())
+        for dark in [false, true] {
+            let suite = "ReadmeImages-\(UUID().uuidString)"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { defaults.removePersistentDomain(forName: suite) }
+            let settings = AppSettings(defaults: defaults, loginItem: FakeLoginItem())
+            let model = RadialMenuModel(registry: .standard)
+            model.isPresented = true
+            model.load([photo])
+            model.hover(at: ringPoint(0, of: model))
+            let host = NSHostingView(rootView: WelcomeView(settings: settings, wheel: model, close: {}, openSettings: {}))
+            try writePNG(window(host, size: host.fittingSize, title: "Welcome to Swivel", dark: dark),
+                         to: "welcome.\(dark ? "dark" : "light").png")
+        }
+    }
+
     // MARK: - Rendering
 
     private func render(_ scene: WheelScene) throws -> CGImage {

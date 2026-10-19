@@ -55,12 +55,12 @@ struct SettingsView: View {
     private var general: some View {
         Form {
             Section {
-                Toggle("Open Converter at login", isOn: Binding(
+                Toggle("Open Swivel at login", isOn: Binding(
                     get: { settings.launchAtLogin },
                     set: { settings.setLaunchAtLogin($0) }))
                 if settings.loginStatus == .requiresApproval {
                     HStack {
-                        Text("Allow Converter in Login Items to finish turning this on.")
+                        Text("Allow Swivel in Login Items to finish turning this on.")
                             .font(.callout).foregroundStyle(.secondary)
                         Spacer()
                         Button("Open Login Items…") { settings.openLoginItemsSettings() }
@@ -98,7 +98,7 @@ struct SettingsView: View {
                     }
                 }
             } footer: {
-                Text("Converter works offline. Results are saved next to the original, which is never changed. With the menu bar icon hidden, open Converter again to see these settings.")
+                Text("Swivel works offline. Results are saved next to the original, which is never changed. With the menu bar icon hidden, open Swivel again to see these settings.")
                     .font(.callout).foregroundStyle(.secondary)
             }
         }

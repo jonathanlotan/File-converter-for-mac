@@ -2,17 +2,24 @@
 
 <img src="docs/images/icon.png" width="112" alt="">
 
-# File converter for Mac
+# Swivel
 
 **Drag a file, tap a key, drop it on the wheel.**<br>
 Convert, crop, compress, inspect and share files on your Mac without uploading them anywhere.
 
-[![macOS 13 or later](https://img.shields.io/badge/macOS-13%2B-1d1d1f?logo=apple&logoColor=white)](#building)
-[![Apple silicon](https://img.shields.io/badge/Apple%20silicon-arm64-1d1d1f)](#building)
-[![Fully offline](https://img.shields.io/badge/network-none-2ea44f)](#private-by-design)
-[![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](#project-layout)
+[![Download for Mac](https://img.shields.io/badge/Download_for_Mac-Swivel.dmg-0071e3?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/jonathanlotan/Swivel/releases/latest/download/Swivel.dmg)
 
-### [▶ Try the wheel in your browser](https://jonathanlotan.github.io/File-converter-for-mac/)
+```bash
+brew install --cask jonathanlotan/tap/swivel
+```
+
+[![Latest release](https://img.shields.io/github/v/release/jonathanlotan/Swivel?color=1d1d1f&label=release)](https://github.com/jonathanlotan/Swivel/releases/latest)
+[![macOS 13 or later](https://img.shields.io/badge/macOS-13%2B-1d1d1f?logo=apple&logoColor=white)](#faq)
+[![Apple silicon](https://img.shields.io/badge/Apple%20silicon-arm64-1d1d1f)](#faq)
+[![Fully offline](https://img.shields.io/badge/network-none-2ea44f)](#private-by-design)
+[![MIT License](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
+
+### [▶ Try the wheel in your browser](https://jonathanlotan.github.io/Swivel/)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/wheel-demo.dark.gif">
@@ -20,6 +27,14 @@ Convert, crop, compress, inspect and share files on your Mac without uploading t
 </picture>
 
 </div>
+
+## Why Swivel
+
+- **Free and open source.** MIT licensed. No trial, no account, no in-app purchase.
+- **Nothing to allow.** The wheel works without Accessibility or Input Monitoring permission ([how](#how-it-works)).
+- **Never touches the network.** There's no network code, and a test fails if networking APIs get linked in.
+- **Small and native.** Swift and Apple's own frameworks, signed and notarized by Apple.
+- **A command line too.** The same engine as `swivel convert --to image.jpeg *.heic`, installed with the app.
 
 ## One gesture, three rings
 
@@ -114,7 +129,7 @@ size and the crop is scaled to it. With several photos it steps through them, ke
 - Video: MP4 (H.264 or HEVC), MOV, MOV (ProRes), M4V, GIF, or a still frame.
 - The sound from a video: M4A, WAV, AIFF or FLAC.
 - Audio: M4A (AAC or lossless), WAV, AIFF, FLAC, AAC, CAF. 24-bit stays 24-bit.
-- Tools: compress, resize to 4K, 1080p, 720p or 540p, remove audio.
+- Tools: compress, resize to 4K, 1080p, 720p or 540p (only sizes smaller than the clip), remove audio.
 </details>
 
 <details>
@@ -136,7 +151,18 @@ Formats that would need third-party encoders (writing WebP or JPEG XL, MP3, Ogg,
 aren't included.
 
 **Other ways in:** drop files on the menu bar icon, choose **Convert Files…** from its menu,
-use **Services › Convert with Converter…** or the Quick Action in Finder, or **Open With**.
+use **Services › Convert with Swivel…** or the Quick Action in Finder, or **Open With**.
+
+### The command line
+
+The app includes `swivel`, the same engine without the wheel. Homebrew puts it on your `PATH`;
+otherwise it's at `Swivel.app/Contents/Helpers/swivel`.
+
+```bash
+swivel list IMG_2041.heic                  # what this file can become
+swivel convert --to image.jpeg *.heic      # results go next to each original
+swivel formats                             # every conversion and whether this Mac can do it
+```
 
 ## Private by design
 
@@ -144,7 +170,64 @@ Everything happens on your Mac, with Apple's own frameworks (ImageIO, AVFoundati
 AudioToolbox, PDFKit, Vision) and tools that come with macOS (`textutil`, `ditto`, `tar`,
 `aa`). There's no network code, no account and no telemetry; a test checks that no
 networking APIs are linked. Locations in the metadata window are shown as coordinates,
-with no map, because a map would need the network.
+with no map, because a map would need the network. See the [privacy policy](https://jonathanlotan.github.io/Swivel/privacy.html).
+
+## How it works
+
+- **Spotting a drag without permissions.** Any app may watch for mouse-downs in other apps,
+  and read the drag pasteboard's change count and types (never its contents). Swivel arms on
+  mouse-down, checks 60 times a second while the button is held, and treats it as a file drag
+  only when the drag pasteboard changed and holds file URLs. Then a tap of a ring key opens the
+  wheel, a non-activating panel that takes the drop. Watching key presses in other apps would
+  need Accessibility or Input Monitoring; reading which modifier keys are down doesn't.
+- **Nothing overwritten, nothing half-written.** Each result is written to a temporary folder,
+  then moved into place with `renamex_np(…, RENAME_EXCL)`, which fails rather than replace a
+  file, so the name steps on to `IMG_2041 2.jpg`. A cancelled or failed job leaves nothing behind.
+- **Archives stay in their folder.** Extraction refuses any entry that would land outside it.
+- **Offline, checked.** Tests run `nm -u` on the built app, Quick Action and CLI, and fail on
+  `URLSession`, CFNetwork, sockets or `getaddrinfo`. The Quick Action has no network entitlement.
+- **These pictures are the app.** The images on this page are rendered from the app's own views
+  by a test (`make readme-images`), so they can't drift from what ships.
+
+## FAQ
+
+<details>
+<summary><b>Why can't it write WebP, MP3, WebM or MKV?</b></summary>
+
+macOS has no encoders for them, and Swivel only uses what comes with macOS. It can read WebP.
+Writing these would mean bundling libwebp, LAME or ffmpeg, each with its own license and size;
+they may come later as an optional add-on.
+</details>
+
+<details>
+<summary><b>Which Macs and macOS versions?</b></summary>
+
+Apple silicon Macs with macOS 13 Ventura or later. It's tested on macOS 26.6; reports from
+other versions are welcome in [Issues](https://github.com/jonathanlotan/Swivel/issues).
+</details>
+
+<details>
+<summary><b>How do I update it?</b></summary>
+
+Swivel never checks for updates, since that would need the network. Use
+`brew upgrade --cask swivel`, or watch this repository for releases (**Watch › Custom › Releases**).
+</details>
+
+<details>
+<summary><b>How is this different from Tangerine?</b></summary>
+
+The Shift-drag idea comes from [Tangerine](https://tangerineformac.com) by Leap Studio, a paid
+app with more formats and tools. If you want a commercially supported converter, buy it.
+Swivel is an independent, open-source take on the idea, built from Tangerine's public
+description. None of its code or assets are used.
+</details>
+
+<details>
+<summary><b>How do I uninstall it?</b></summary>
+
+Quit it from the menu bar and move Swivel.app to the Trash (or `brew uninstall --cask swivel`).
+Its settings are in `~/Library/Preferences/io.github.jonathanlotan.Swivel.plist`.
+</details>
 
 ## Building
 
@@ -158,21 +241,33 @@ make run
 | Command | What it does |
 |---|---|
 | `make run` | Builds and opens the app (it lives in the menu bar) |
-| `make test` | Runs all tests: 64 for the conversion engine, 102 for the app |
+| `make test` | Runs all tests: 65 for the conversion engine, 104 for the app |
 | `make app` | Generates the Xcode project and builds the app |
 | `make core-test` | Runs only the conversion engine's tests |
-| `make cli` | Builds `converter-cli` and prints its path |
+| `make cli` | Builds the `swivel` command and prints its path |
 | `make readme-images` | Renders the pictures on this page from the app's own views |
+| `make release` | Signs, notarizes and packages `Swivel.dmg` ([how](docs/dev/releasing.md)) |
 | `make clean` | Removes the build output |
 
 Builds go to `~/Library/Caches/Converter` rather than the project folder, because iCloud
-Drive's file attributes break code signing. The app is signed to run on your own Mac (ad
-hoc); it isn't notarized.
+Drive's file attributes break code signing. Local builds are signed to run on your own Mac
+(ad hoc).
 
 ## Project layout
 
-- `Packages/ConverterCore`: the conversion engine, a Swift package with no UI code, plus `converter-cli` and its tests.
-- `Converter/App`: the menu bar app in SwiftUI and AppKit: the wheel, menus, job queue, settings, crop editor, metadata window and file actions.
+- `Packages/ConverterCore`: the conversion engine, a Swift package with no UI code, plus the `swivel` command and its tests.
+- `Converter/App`: the menu bar app in SwiftUI and AppKit: the wheel, menus, job queue, settings, crop editor, metadata window, welcome window and file actions.
 - `Converter/QuickAction`: the Finder Quick Action extension.
 - `Converter/AppTests`: the app's tests, including the renderer for this page's pictures.
-- `docs/`: the [plan](docs/plan.md), the [verification report and feature table](docs/verification.md), the [design notes](docs/design.md) for macOS 26 and 27, and the [browser tryout](docs/index.html).
+- `docs/`: the [browser tryout](docs/index.html) and, in [`docs/dev`](docs/dev), the development [plan](docs/dev/plan.md), the [verification report](docs/dev/verification.md) and the [design notes](docs/dev/design.md) for macOS 26 and 27.
+
+## Contributing
+
+Bug reports, format requests and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Credits
+
+Made by Jonathan Lotan, with help from [Claude Code](https://claude.com/claude-code).
+The Shift-drag gesture is inspired by [Tangerine](https://tangerineformac.com).
+
+If Swivel saves you a trip to a converter website, a ⭐ helps other people find it.

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swivel – privacy and terms</title>
+<meta name="description" content="Swivel collects nothing. It has no network code, no analytics and no account.">
+<link rel="canonical" href="https://jonathanlotan.github.io/Swivel/privacy.html">
+<link rel="icon" href="images/icon.png">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f5f5f7;
+  --text: #1d1d1f;
+  --secondary: #6e6e73;
+  --accent: #007aff;
+  --line: rgba(0, 0, 0, 0.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161617;
+    --text: #f5f5f7;
+    --secondary: #a1a1a6;
+    --accent: #0a84ff;
+    --line: rgba(255, 255, 255, 0.14);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+header { display: flex; gap: 14px; align-items: center; margin-bottom: 8px; }
+header img { width: 56px; height: 56px; flex: none; }
+h1 { margin: 0; font-size: 30px; letter-spacing: -0.02em; }
+h2 { margin: 36px 0 8px; font-size: 20px; letter-spacing: -0.01em; }
+p, li { color: var(--text); }
+.lead { font-size: 20px; margin: 20px 0 0; }
+.muted { color: var(--secondary); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font: 14px ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+ul { padding-left: 22px; }
+footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--secondary); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="images/icon.png" alt="">
+    <h1>Privacy and terms</h1>
+  </header>
+  <p class="muted">Swivel, the file converter for macOS. Effective 19 October 2026.</p>
+
+  <p class="lead"><b>Swivel collects nothing.</b> It has no network code, so it can't send or receive
+    anything, and there is no account, no analytics, no crash reporting and no update check.</p>
+
+  <h2>Your files</h2>
+  <ul>
+    <li>Files are converted on your Mac with Apple's frameworks and tools that come with macOS.
+      They are never uploaded.</li>
+    <li>Results are saved next to the originals. Originals are never changed, and nothing is overwritten.</li>
+    <li>When macOS asks whether Swivel may use your Desktop, Documents or Downloads folder,
+      it's so the result can be saved next to the file you dragged.</li>
+    <li>If you use <b>Share</b> (AirDrop, Mail, Messages and so on), macOS hands the files to the
+      service you pick, and that service's own privacy policy applies.</li>
+  </ul>
+
+  <h2>What Swivel stores</h2>
+  <p>Only your settings, on your Mac, in
+    <code>~/Library/Preferences/io.github.jonathanlotan.Swivel.plist</code>.
+    Deleting the app and that file removes everything.</p>
+
+  <h2>How you can check</h2>
+  <p>The <a href="https://github.com/jonathanlotan/Swivel">source code</a> is public. Its tests
+    inspect the built app, its Finder extension and the <code>swivel</code> command for networking
+    APIs and fail if any are linked. A network monitor such as LuLu or Little Snitch will show
+    Swivel making no connections.</p>
+
+  <h2>This website</h2>
+  <p>These pages are hosted on GitHub Pages. They use no cookies, no analytics and no third-party
+    scripts, and the browser tryout reads none of your files. GitHub may keep server logs; see the
+    <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub
+    privacy statement</a>.</p>
+
+  <h2>Terms</h2>
+  <p>Swivel is free, open-source software under the
+    <a href="https://github.com/jonathanlotan/Swivel/blob/main/LICENSE">MIT License</a>. You may use,
+    copy, change and share it. It is provided as is, without warranty of any kind; keep backups of
+    files that matter.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this page: open an
+    <a href="https://github.com/jonathanlotan/Swivel/issues">issue</a>. Security problems: report them
+    <a href="https://github.com/jonathanlotan/Swivel/security/advisories/new">privately</a>.</p>
+
+  <footer><a href="./">Try the wheel</a> · <a href="https://github.com/jonathanlotan/Swivel">Swivel on GitHub</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,23 @@
+name: Format or tool request
+description: A conversion, tool or action you'd like Swivel to have.
+labels: [enhancement]
+body:
+  - type: input
+    id: from
+    attributes:
+      label: From
+      placeholder: "WebP image"
+    validations:
+      required: true
+  - type: input
+    id: to
+    attributes:
+      label: To (or the tool you'd like)
+      placeholder: "PNG, or \"rotate 90°\""
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What would you use it for?
+      description: It helps decide what to add first. Note that Swivel only uses encoders that come with macOS, so some formats (writing WebP, MP3, WebM) need a third-party library and a discussion first.

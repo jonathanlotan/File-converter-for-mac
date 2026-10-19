@@ -1,4 +1,8 @@
-# Converter: design for macOS 26 and 27
+# Swivel: design for macOS 26 and 27
+
+> Written during development with Claude Code, so "I" is Claude and "you" is
+> the author, Jonathan Lotan. The app was called **Converter** then; it's now
+> **Swivel**. To use it, see the [README](../../README.md).
 
 Date: 2026-10-19. Built with Xcode 27.1 and the macOS 27.0 SDK. Tested on
 macOS 26.6.2, so anything that only exists on macOS 27 still needs

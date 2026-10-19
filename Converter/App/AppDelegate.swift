@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var statusItem: StatusItemController?
     private(set) var shiftDrag: ShiftDragController?
     private var settingsWindow: SettingsWindowController?
+    private var welcomeWindow: WelcomeWindowController?
     private var servicesProvider: ServicesProvider?
     private var optionsSubscription: AnyCancellable?
 
@@ -38,15 +39,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.shiftDrag = shiftDrag
         let settingsWindow = SettingsWindowController(settings: settings, shiftDrag: shiftDrag, registry: registry)
         self.settingsWindow = settingsWindow
+        let welcomeWindow = WelcomeWindowController(settings: settings, registry: registry,
+                                                    showSettings: { settingsWindow.show() })
+        self.welcomeWindow = welcomeWindow
         let statusItem = StatusItemController(queue: queue, registry: registry, shiftDrag: shiftDrag,
-                                              settings: settings, actions: actions, showSettings: { settingsWindow.show() })
+                                              settings: settings, actions: actions, showSettings: { settingsWindow.show() },
+                                              showWelcome: { welcomeWindow.show() })
         self.statusItem = statusItem
 
-        // "Convert with Converter…" in Finder's right-click > Services.
+        // "Convert with Swivel…" in Finder's right-click > Services.
         let services = ServicesProvider { [weak statusItem] urls in statusItem?.offerConversions(for: urls, at: .cursor) }
         servicesProvider = services
         NSApp.servicesProvider = services
         NSUpdateDynamicServices()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Not when the app is only hosting the tests.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        welcomeWindow?.showIfFirstLaunch()
     }
 
     /// Opening the app while it runs (Finder, Spotlight, Launchpad) shows

@@ -1,8 +1,8 @@
 import AppKit
 
-/// "Convert with Converter" in Finder's Quick Actions (right-click and the
+/// "Convert with Swivel" in Finder's Quick Actions (right-click and the
 /// preview pane). App extensions must be sandboxed, so this one converts
-/// nothing itself: it opens the chosen files with Converter, which shows
+/// nothing itself: it opens the chosen files with Swivel, which shows
 /// its format menu at the pointer and saves the results beside them.
 final class ActionRequestHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {

@@ -7,7 +7,7 @@ CORE          := Packages/ConverterCore
 CORE_BUILD    := $(BUILD_ROOT)/ConverterCore
 SWIFT         := DEVELOPER_DIR=$(DEVELOPER_DIR) swift
 
-.PHONY: core core-test cli project app app-test run test readme-images clean
+.PHONY: core core-test cli project app app-test run test readme-images release clean
 
 core:
 	$(SWIFT) build --package-path $(CORE) --scratch-path $(CORE_BUILD)
@@ -18,11 +18,11 @@ core-test: core
 # Prints the path of the built CLI, e.g. `$(make -s cli) list photo.heic`.
 cli:
 	@$(SWIFT) build --package-path $(CORE) --scratch-path $(CORE_BUILD) >&2
-	@echo $$($(SWIFT) build --package-path $(CORE) --scratch-path $(CORE_BUILD) --show-bin-path)/converter-cli
+	@echo $$($(SWIFT) build --package-path $(CORE) --scratch-path $(CORE_BUILD) --show-bin-path)/swivel
 
 # --- App ------------------------------------------------------------------
 APP_BUILD     := $(BUILD_ROOT)/DerivedData
-APP           := $(APP_BUILD)/Build/Products/Debug/Converter.app
+APP           := $(APP_BUILD)/Build/Products/Debug/Swivel.app
 # Drops Xcode log noise unrelated to this project.
 NOISE         := iOSSimulator|appintentsmetadataprocessor|com\.apple\.linkd
 XCODEBUILD    := DEVELOPER_DIR=$(DEVELOPER_DIR) xcodebuild -project Converter/Converter.xcodeproj \
@@ -39,7 +39,7 @@ app-test: project
 
 # Quits a running copy, then launches the fresh build.
 run: app
-	-pkill -x Converter; sleep 0.5
+	-pkill -x Swivel; sleep 0.5
 	open "$(APP)"
 
 test: core-test app-test
@@ -52,6 +52,12 @@ readme-images: project
 		| grep -E "error:|Test Case.*(passed|failed)|TEST (SUCCEEDED|FAILED)"
 	sips -s format png --resampleWidth 256 "$(APP)/Contents/Resources/AppIcon.icns" \
 		--out $(README_IMAGES)/icon.png >/dev/null
+	sips -s format png --resampleWidth 1024 "$(APP)/Contents/Resources/AppIcon.icns" \
+		--out $(README_IMAGES)/icon-1024.png >/dev/null
+
+# Signed, notarized Swivel.dmg for a GitHub release (docs/dev/releasing.md).
+release:
+	./scripts/release.sh
 
 clean:
 	rm -rf $(BUILD_ROOT)

@@ -2,13 +2,17 @@ import ConverterCore
 import Darwin
 import Foundation
 
-/// Command-line front end to ConverterCore, for testing conversions without the app.
+/// The `swivel` command: ConverterCore's conversions without the app.
 @main
 struct CLI {
+    /// Kept in step with MARKETING_VERSION in Converter/project.yml (`make release` checks).
+    static let version = "1.0.0"
+
     static let usage = """
-    usage: converter-cli formats
-           converter-cli list <file>...
-           converter-cli convert --to <id> [--quality 0-1] [--compression-quality 0-1] [--no-metadata] <file>...
+    usage: swivel formats
+           swivel list <file>...
+           swivel convert --to <id> [--quality 0-1] [--compression-quality 0-1] [--no-metadata] <file>...
+           swivel --version
 
       formats   every conversion and whether this Mac can do it
       list      conversions available for the given files
@@ -27,6 +31,7 @@ struct CLI {
         case "list": listConversions(for: args)
         case "convert": exit(await convert(args))
         case "-h", "--help", "help": print(usage)
+        case "-v", "--version", "version": print("swivel \(version)")
         default: fail("unknown command '\(command)'\n\n\(usage)", code: 2)
         }
     }
@@ -79,7 +84,7 @@ struct CLI {
         }
         guard let converterID, !paths.isEmpty else { fail(usage, code: 2) }
         guard let converter = ConverterRegistry.standard.converter(id: converterID) else {
-            fail("unknown conversion '\(converterID)'. Run 'converter-cli formats' to see them all.", code: 2)
+            fail("unknown conversion '\(converterID)'. Run 'swivel formats' to see them all.", code: 2)
         }
         let inputs = paths.map(loadInput)
 

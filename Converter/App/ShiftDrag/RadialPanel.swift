@@ -23,7 +23,7 @@ final class RadialPanel: NSPanel {
     private var generation = 0
     private var scrollMonitor: Any?
     private var scroller = RingScroller()
-    private let log = Logger(subsystem: "com.example.Converter", category: "shift-drag")
+    private let log = Logger(subsystem: "io.github.jonathanlotan.Swivel", category: "shift-drag")
 
     init(model: RadialMenuModel) {
         self.model = model

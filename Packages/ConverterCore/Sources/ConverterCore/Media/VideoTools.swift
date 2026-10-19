@@ -172,7 +172,13 @@ public struct ResizeVideoConverter: Converter {
     public var isAvailable: Bool { AVAssetExportSession.allExportPresets().contains(preset) }
 
     public func accepts(_ input: InputFile) -> Bool {
-        MediaTypes.isMovie(input)
+        MediaTypes.isMovie(input) && Self.shrinks(shortSide: MediaTypes.shortSide(ofMovieAt: input.url), to: height)
+    }
+
+    /// Whether to offer this size: only below the picture's short side, or
+    /// every size while that isn't known (`convert` checks again).
+    static func shrinks(shortSide: Int?, to height: Int) -> Bool {
+        shortSide.map { $0 > height } ?? true
     }
 
     public func output(for input: InputFile) -> OutputSpec {

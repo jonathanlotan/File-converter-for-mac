@@ -69,7 +69,7 @@ final class DragWatcher {
     private var monitor: Any?
     /// Keys held at the previous poll, to spot new taps.
     private var heldKeys: Set<ModifierKey> = []
-    private let log = Logger(subsystem: "com.example.Converter", category: "shift-drag")
+    private let log = Logger(subsystem: "io.github.jonathanlotan.Swivel", category: "shift-drag")
 
     init(environment: DragEnvironment, usesTimer: Bool = true) {
         self.environment = environment

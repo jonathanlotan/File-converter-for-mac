@@ -43,14 +43,14 @@ final class FinderIntegrationTests: XCTestCase {
         pasteboard.setString("just text", forType: .string)
         var error: NSString?
         provider.convertFiles(pasteboard, userData: nil, error: &error)
-        XCTAssertEqual(error, "Converter needs files to convert.")
+        XCTAssertEqual(error, "Swivel needs files to convert.")
     }
 
     func testAppDeclaresTheService() throws {
         let services = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "NSServices") as? [[String: Any]])
         let service = try XCTUnwrap(services.first)
         XCTAssertEqual(service["NSMessage"] as? String, ServicesProvider.messageName)
-        XCTAssertEqual((service["NSMenuItem"] as? [String: String])?["default"], "Convert with Converter…")
+        XCTAssertEqual((service["NSMenuItem"] as? [String: String])?["default"], "Convert with Swivel…")
         XCTAssertEqual(service["NSSendFileTypes"] as? [String], ["public.item"])
         XCTAssertNotNil(service["NSRequiredContext"], "without it the service starts disabled")
         XCTAssertTrue(ServicesProvider.instancesRespond(to: NSSelectorFromString("convertFiles:userData:error:")))
@@ -66,7 +66,7 @@ final class FinderIntegrationTests: XCTestCase {
         XCTAssertEqual(ext["NSExtensionPrincipalClass"] as? String, "ConverterQuickAction.ActionRequestHandler")
         let attributes = try XCTUnwrap(ext["NSExtensionAttributes"] as? [String: Any])
         XCTAssertEqual(attributes["NSExtensionServiceAllowsFinderPreviewItem"] as? Bool, true)
-        XCTAssertEqual(info["CFBundleDisplayName"] as? String, "Convert with Converter")
+        XCTAssertEqual(info["CFBundleDisplayName"] as? String, "Convert with Swivel")
 
         // The activation rule must accept a Finder selection of files.
         let rule = try XCTUnwrap(attributes["NSExtensionActivationRule"] as? String)
@@ -79,8 +79,8 @@ final class FinderIntegrationTests: XCTestCase {
     }
 
     func testExtensionFindsItsHostApp() {
-        let appex = URL(fileURLWithPath: "/Applications/Converter.app/Contents/PlugIns/ConverterQuickAction.appex")
-        XCTAssertEqual(QuickActionSupport.hostApp(of: appex)?.path, "/Applications/Converter.app")
+        let appex = URL(fileURLWithPath: "/Applications/Swivel.app/Contents/PlugIns/ConverterQuickAction.appex")
+        XCTAssertEqual(QuickActionSupport.hostApp(of: appex)?.path, "/Applications/Swivel.app")
         XCTAssertNil(QuickActionSupport.hostApp(of: URL(fileURLWithPath: "/tmp/Loose.appex")))
         let real = Bundle.main.builtInPlugInsURL!.appendingPathComponent("ConverterQuickAction.appex")
         XCTAssertEqual(QuickActionSupport.hostApp(of: real)?.standardizedFileURL, Bundle.main.bundleURL.standardizedFileURL)

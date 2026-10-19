@@ -69,6 +69,13 @@ final class FileToolTests: XCTestCase {
         }
     }
 
+    func testResizeOffersOnlySmallerSizes() {
+        XCTAssertTrue(ResizeVideoConverter.shrinks(shortSide: 1080, to: 720))
+        XCTAssertFalse(ResizeVideoConverter.shrinks(shortSide: 720, to: 720), "never the same size")
+        XCTAssertFalse(ResizeVideoConverter.shrinks(shortSide: 540, to: 1080), "never larger")
+        XCTAssertTrue(ResizeVideoConverter.shrinks(shortSide: nil, to: 2160), "offered while the size isn't known")
+    }
+
     // MARK: PDF
 
     func testMergingPDFsInNameOrder() async throws {

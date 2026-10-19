@@ -1,5 +1,6 @@
 import AudioToolbox
 import AVFoundation
+import CoreServices
 import Foundation
 import UniformTypeIdentifiers
 
@@ -70,5 +71,16 @@ enum MediaTypes {
 
     static func isAudio(_ input: InputFile) -> Bool {
         !input.isDirectory && input.contentType.conforms(to: .audio) && isReadable(input.contentType)
+    }
+
+    /// The short side of a video's picture from Spotlight's metadata, read
+    /// synchronously so menus can use it; nil when the file isn't indexed
+    /// (yet). Rotation only swaps the sides, so it doesn't matter here.
+    static func shortSide(ofMovieAt url: URL) -> Int? {
+        guard let item = MDItemCreateWithURL(nil, url as CFURL),
+              let width = MDItemCopyAttribute(item, kMDItemPixelWidth) as? Int,
+              let height = MDItemCopyAttribute(item, kMDItemPixelHeight) as? Int,
+              width > 0, height > 0 else { return nil }
+        return min(width, height)
     }
 }

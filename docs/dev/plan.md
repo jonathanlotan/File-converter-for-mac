@@ -1,10 +1,14 @@
-# Converter: plan
+# Swivel: development plan
+
+> Written during development with Claude Code, so "I" is Claude and "you" is
+> the author, Jonathan Lotan. The app was called **Converter** then; it's now
+> **Swivel**. To use it, see the [README](../../README.md).
 
 Working name: **Converter** (placeholder until you pick a name). A native,
 fully offline macOS menu bar app that converts files by Shift-dragging them
-onto a radial menu of output formats. It's inspired by the feature
-description of an existing product, but none of its code, assets, name or
-branding are used.
+onto a radial menu of output formats. It's inspired by the public feature
+description of [Tangerine](https://tangerineformac.com) by Leap Studio, but
+none of its code, assets, name or branding are used.
 
 - Platform: Apple silicon only (`arm64`), macOS 13 Ventura or later.
 - Build host (probed 2026-10-19): Apple M5, macOS 26.6.2, Xcode 27.1,
@@ -496,7 +500,7 @@ one starts.
   photo 3.jpg with no UI. Not verified: the extension can't be invoked
   without Finder, so you tested it by hand. 55 app tests and 47 core tests.
 - **Three rings (2026-10-19, after the milestones).** At your request,
-  the wheel now works like the public description of the product that inspired it.
+  the wheel now works like Tangerine's public description.
   - Start dragging, then *tap* ⇧ for Convert formats, ⌘ for File tools or ⌃
     for File actions. Keys held when the drag starts don't count.
   - Another key, or scrolling (one ring per trackpad swipe or wheel notch),
@@ -511,7 +515,7 @@ one starts.
     folder.
   - While ⌘ or ⌃ is held, macOS only allows a generic or link drop, so the
     wheel accepts those instead of refusing, and never a move.
-  - The site also says the real app is sold on the **Mac App Store**, so the
+  - Tangerine is sold on the **Mac App Store**, so the
     sandbox may be workable after all (§2.4 assumed it wasn't). Revisit
     before distribution.
 - **Test and verify: done (2026-10-19).** A clean rebuild passes 104 tests
@@ -567,7 +571,8 @@ duration and size), `tar`/`ditto` (archives), and PDFKit (multi-page PDFs).
 2. **Signing:** "Sign to Run Locally" (ad hoc) during development. Expect
    macOS folder-access and permission grants to reset after rebuilds. No
    notarization until a Developer ID is available.
-3. **Trigger key:** Shift only. No setting to change it.
+3. **Trigger key:** Shift only. No setting to change it. (Superseded by the
+   three rings, whose keys are chosen in Settings.)
 4. **Test scope:** macOS 26 on this Mac is enough. Older systems rely on
    the runtime capability checks in §1.7 and aren't tested here.
 5. **SVG input** needs `NSImage` (AppKit), which `ConverterCore` must not

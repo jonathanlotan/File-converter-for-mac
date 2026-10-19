@@ -106,7 +106,21 @@ header {
   gap: 16px;
   align-items: center;
 }
+header { flex-wrap: wrap; }
+header > div { flex: 1 1 320px; }
 header img { width: 64px; height: 64px; flex: none; }
+.cta { display: flex; flex-wrap: wrap; gap: 8px; }
+.cta a {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cta a.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.cta a:hover { text-decoration: none; filter: brightness(1.06); }
 header h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 header p { margin: 2px 0 0; color: var(--secondary); }
 
@@ -438,9 +452,13 @@ dialog img { width: 100%; height: auto; display: block; }
   <img src="images/icon.png" alt="">
   <div>
     <h1>Try the wheel</h1>
-    <p>A browser copy of <a href="https://github.com/jonathanlotan/Swivel">Swivel</a>.
+    <p>A browser copy of <a href="https://github.com/jonathanlotan/Swivel">Swivel</a>, a free, open-source file converter for the Mac.
       The files are pretend: nothing is read, changed or uploaded.</p>
   </div>
+  <nav class="cta" aria-label="Get Swivel">
+    <a class="primary" href="https://github.com/jonathanlotan/Swivel/releases/latest/download/Swivel.dmg">Download for Mac</a>
+    <a href="https://github.com/jonathanlotan/Swivel">Star on GitHub</a>
+  </nav>
 </header>
 
 <div class="steps" id="steps">
@@ -463,7 +481,7 @@ dialog img { width: 100%; height: auto; display: block; }
 </div>
 
 <div class="below">
-  <span>Built from the app's own menus, names and wheel geometry. Key taps need a real keyboard; touch uses tap mode.</span>
+  <span>Built from the app's own menus, names and wheel geometry. Key taps need a real keyboard; touch uses tap mode. <a href="privacy.html">Privacy</a>: this page and the app collect nothing.</span>
   <span><button type="button" id="reset">Reset the files</button> <button type="button" id="theme">Switch light or dark</button></span>
 </div>
 

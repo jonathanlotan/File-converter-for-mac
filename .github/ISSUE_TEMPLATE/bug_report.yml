@@ -1,0 +1,39 @@
+name: Bug report
+description: Something didn't work or looked wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: file
+    attributes:
+      label: Kind of file
+      description: For example "HEIC photo from an iPhone", "4K MOV", "Word .docx". Attach a sample if it isn't private.
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.6
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Swivel version
+      description: In About Swivel, or `swivel --version`.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Downloaded the DMG
+        - Homebrew
+        - Built from source

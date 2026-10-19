@@ -14,6 +14,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let settings: AppSettings?
     private let actions: FileActionPerformer?
     private let showSettings: () -> Void
+    private let showWelcome: () -> Void
     private let mainMenu = NSMenu()
     /// Results of the current batch, selected in Finder when it ends.
     private var batchOutputs: [URL] = []
@@ -25,18 +26,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var batchHadFailure = false
 
     init(queue: JobQueue, registry: ConverterRegistry = .standard, shiftDrag: ShiftDragController? = nil,
-         settings: AppSettings? = nil, actions: FileActionPerformer? = nil, showSettings: @escaping () -> Void = {}) {
+         settings: AppSettings? = nil, actions: FileActionPerformer? = nil, showSettings: @escaping () -> Void = {},
+         showWelcome: @escaping () -> Void = {}) {
         self.queue = queue
         self.registry = registry
         self.shiftDrag = shiftDrag
         self.settings = settings
         self.actions = actions
         self.showSettings = showSettings
+        self.showWelcome = showWelcome
         super.init()
 
         if let button = statusItem.button {
             button.image = StatusIcon.image(progress: nil)
-            button.toolTip = "Converter: drop files here to convert them"
+            button.toolTip = "Swivel: drop files here to convert them"
             let dropView = StatusDropView(frame: button.bounds)
             dropView.autoresizingMask = [.width, .height]
             dropView.onHover = { [weak self] hovering in self?.statusItem.button?.highlight(hovering) }
@@ -68,7 +71,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// Test hook, debug builds only: when this default names a converter,
     /// files arriving from Finder are converted with it instead of showing
     /// the menu, so the Services and Quick Action paths can be checked
-    /// end to end without UI. `defaults write com.example.Converter DebugAutoPickConverter image.jpeg`
+    /// end to end without UI. `defaults write io.github.jonathanlotan.Swivel DebugAutoPickConverter image.jpeg`
     static let autoPickKey = "DebugAutoPickConverter"
     #endif
 
@@ -164,14 +167,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let settingsItem = ActionMenuItem(title: "Settings…", keyEquivalent: ",") { [weak self] in self?.showSettings() }
         MenuIcons.set("gearshape", on: settingsItem)
         menu.addItem(settingsItem)
-        let about = ActionMenuItem(title: "About Converter") {
+        let welcome = ActionMenuItem(title: "How to Use Swivel…") { [weak self] in self?.showWelcome() }
+        MenuIcons.set("questionmark.circle", on: welcome)
+        menu.addItem(welcome)
+        let about = ActionMenuItem(title: "About Swivel") {
             NSApp.activate(ignoringOtherApps: true)
             NSApp.orderFrontStandardAboutPanel(nil)
         }
         MenuIcons.set("info.circle", on: about)
         menu.addItem(about)
         menu.addItem(.separator())
-        let quit = ActionMenuItem(title: "Quit Converter", keyEquivalent: "q") { NSApp.terminate(nil) }
+        let quit = ActionMenuItem(title: "Quit Swivel", keyEquivalent: "q") { NSApp.terminate(nil) }
         MenuIcons.set("power", on: quit)
         menu.addItem(quit)
     }

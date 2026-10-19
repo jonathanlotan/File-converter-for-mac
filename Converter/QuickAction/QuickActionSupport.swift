@@ -4,8 +4,8 @@ import UniformTypeIdentifiers
 /// The Quick Action's logic, kept apart from the request handler so the
 /// app's tests can compile and exercise it too.
 enum QuickActionSupport {
-    /// Converter.app, found from the extension's own bundle at
-    /// Converter.app/Contents/PlugIns/ConverterQuickAction.appex.
+    /// Swivel.app, found from the extension's own bundle at
+    /// Swivel.app/Contents/PlugIns/ConverterQuickAction.appex.
     static func hostApp(of extensionBundle: URL) -> URL? {
         let app = extensionBundle.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         return app.pathExtension == "app" ? app : nil

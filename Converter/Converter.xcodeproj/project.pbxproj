@@ -34,6 +34,7 @@
 		5B3DB727AD8C261B0EBB7E3F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971FCE9B86330E6001A8B951 /* AppDelegate.swift */; };
 		62BCA38BCC66D23CC048A59F /* DragWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD69B5387CBE6B3E7578585 /* DragWatcher.swift */; };
 		6DE4AC7E62D9713CD6BC6A40 /* RichTextPDFConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0215980C096A6F9CC801584 /* RichTextPDFConverter.swift */; };
+		7320E1432EC28535771D0379 /* WelcomeWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECEFFB166141FF478B09DBC /* WelcomeWindowTests.swift */; };
 		74A064F534B167C953936B47 /* Shelf.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8930079CB44364579C54C588 /* Shelf.swift */; };
 		74E63D3EFB2F8DC32B467C3B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B222702CB750DF261EBF4979 /* SettingsView.swift */; };
 		763DA490ADF470285409A24A /* StatusDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC7419C6B1375DFAA5DE8B6 /* StatusDropView.swift */; };
@@ -44,6 +45,7 @@
 		84A7A3DF667EADDC9091D9B6 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = E23FF8EE34EFE4E9DDCF4904 /* AppIcon.icon */; };
 		8B7BC1452E5B2BCC1950291E /* MetadataWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64139D3F7DCD3D8140EA0717 /* MetadataWindow.swift */; };
 		913150AC390F357B419ACC7D /* ActionRequestHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = E498850D90CF97ED912DB858 /* ActionRequestHandler.swift */; };
+		96F1C8F9D77ED8F07607EA4B /* WelcomeWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2837B3559E3C11C45F19AE7D /* WelcomeWindow.swift */; };
 		9B7453B29D24E4C86BA23B1B /* WheelShapes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4ED9E3A741065014FEA2AAE /* WheelShapes.swift */; };
 		9BF461828EC88F6DFE1E53A1 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFC8A490083250DEC6BCE670 /* main.swift */; };
 		A5916A2635FE4CD52A76D253 /* JobQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0BF95024DB226E94887A943 /* JobQueue.swift */; };
@@ -101,7 +103,9 @@
 		1BF4D25EC237ECD3701E8D32 /* CropEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropEditorTests.swift; sourceTree = "<group>"; };
 		1E17D56EF8FEAFEE101BC5AA /* ServicesProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicesProvider.swift; sourceTree = "<group>"; };
 		2126F89285C9F50173A08755 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		2837B3559E3C11C45F19AE7D /* WelcomeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeWindow.swift; sourceTree = "<group>"; };
 		287C29E05F94765D42A13A1D /* RadialPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadialPanel.swift; sourceTree = "<group>"; };
+		2ECEFFB166141FF478B09DBC /* WelcomeWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeWindowTests.swift; sourceTree = "<group>"; };
 		2FC7419C6B1375DFAA5DE8B6 /* StatusDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusDropView.swift; sourceTree = "<group>"; };
 		32967B0ECCF60A480050806F /* QuickAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickAction.entitlements; sourceTree = "<group>"; };
 		3CD69B5387CBE6B3E7578585 /* DragWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragWatcher.swift; sourceTree = "<group>"; };
@@ -185,6 +189,14 @@
 			path = Tools;
 			sourceTree = "<group>";
 		};
+		31377199C762DD67834790C3 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				2837B3559E3C11C45F19AE7D /* WelcomeWindow.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
 		46E01EAB142219235043682C /* AppTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -204,6 +216,7 @@
 				654E4CBCE9972C5014F2AF44 /* StatusDropViewTests.swift */,
 				1297DC99644383C0A5BC1524 /* SVGRasterizerTests.swift */,
 				FEC98CEBFAB3BFBE4BF85A5A /* TestSupport.swift */,
+				2ECEFFB166141FF478B09DBC /* WelcomeWindowTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -286,6 +299,7 @@
 				50589F4AABF4BDECA4B71B72 /* Actions */,
 				9CD7167F5A4F2404997316E5 /* Crop */,
 				E0D864ED2F78C736980FEB20 /* Info */,
+				31377199C762DD67834790C3 /* Onboarding */,
 				CC52B96411979243A8A8F865 /* Settings */,
 				0C02D3D7B87A38BA3748F4EF /* ShiftDrag */,
 				2507BCAA2CBEE06E6B6DD350 /* Tools */,
@@ -459,6 +473,7 @@
 				3880461997DE578D2F440764 /* SettingsTests.swift in Sources */,
 				156ECB5ABAF74128EAF6A37C /* StatusDropViewTests.swift in Sources */,
 				7BD14ADC650A17028FA2505D /* TestSupport.swift in Sources */,
+				7320E1432EC28535771D0379 /* WelcomeWindowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -492,6 +507,7 @@
 				763DA490ADF470285409A24A /* StatusDropView.swift in Sources */,
 				41864ACD5173380B8D4487B6 /* StatusIcon.swift in Sources */,
 				F5000283B30DAA3773E80D3E /* StatusItemController.swift in Sources */,
+				96F1C8F9D77ED8F07607EA4B /* WelcomeWindow.swift in Sources */,
 				2D3892C5B299F7CAD9F4EA7E /* WheelBackground.swift in Sources */,
 				9B7453B29D24E4C86BA23B1B /* WheelShapes.swift in Sources */,
 				9BF461828EC88F6DFE1E53A1 /* main.swift in Sources */,
@@ -551,7 +567,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_DEBUG_DYLIB = NO;
@@ -568,7 +584,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -592,9 +608,9 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Converter;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.jonathanlotan.Swivel;
 				PRODUCT_MODULE_NAME = ConverterApp;
-				PRODUCT_NAME = Converter;
+				PRODUCT_NAME = Swivel;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -612,9 +628,9 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Converter;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.jonathanlotan.Swivel;
 				PRODUCT_MODULE_NAME = ConverterApp;
-				PRODUCT_NAME = Converter;
+				PRODUCT_NAME = Swivel;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -631,7 +647,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Converter.QuickAction;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.jonathanlotan.Swivel.QuickAction;
 				PRODUCT_NAME = ConverterQuickAction;
 				SDKROOT = macosx;
 			};
@@ -649,9 +665,9 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.ConverterTests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.jonathanlotan.SwivelTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Converter.app/Contents/MacOS/Converter";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Swivel.app/Contents/MacOS/Swivel";
 			};
 			name = Release;
 		};
@@ -692,7 +708,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_DEBUG_DYLIB = NO;
@@ -715,7 +731,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -739,9 +755,9 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.ConverterTests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.jonathanlotan.SwivelTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Converter.app/Contents/MacOS/Converter";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Swivel.app/Contents/MacOS/Swivel";
 			};
 			name = Debug;
 		};
@@ -757,7 +773,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Converter.QuickAction;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.jonathanlotan.Swivel.QuickAction;
 				PRODUCT_NAME = ConverterQuickAction;
 				SDKROOT = macosx;
 			};

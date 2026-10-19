@@ -27,11 +27,11 @@ settings:
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: YES
-    # One plain executable instead of a stub plus Converter.debug.dylib
+    # One plain executable instead of a stub plus Swivel.debug.dylib
     # (that split only serves SwiftUI previews).
     ENABLE_DEBUG_DYLIB: NO
-    MARKETING_VERSION: "0.2.0"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "3"
 
 targets:
   Converter:
@@ -54,15 +54,22 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Converter
+        CFBundleDisplayName: Swivel
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.utilities
         # Menu bar app: no Dock icon, no main menu.
         LSUIElement: true
-        NSHumanReadableCopyright: ""
-        # Lets Finder offer "Open With > Converter" for any file (images,
+        NSHumanReadableCopyright: "© 2026 Jonathan Lotan. MIT License."
+        # Shown when macOS asks before a result is saved in one of these
+        # places (results go next to the original).
+        NSDesktopFolderUsageDescription: Swivel saves converted files next to the originals on your Desktop.
+        NSDocumentsFolderUsageDescription: Swivel saves converted files next to the originals in Documents.
+        NSDownloadsFolderUsageDescription: Swivel saves converted files next to the originals in Downloads.
+        NSRemovableVolumesUsageDescription: Swivel saves converted files next to the originals on this drive.
+        NSNetworkVolumesUsageDescription: Swivel saves converted files next to the originals on this network volume.
+        # Lets Finder offer "Open With > Swivel" for any file (images,
         # video, audio, documents, archives), without ever becoming the
         # default app.
         CFBundleDocumentTypes:
@@ -70,19 +77,19 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [public.data]
-        # "Convert with Converter…" in Finder's right-click > Services. An
+        # "Convert with Swivel…" in Finder's right-click > Services. An
         # NSRequiredContext (even empty) makes it enabled by default.
         NSServices:
           - NSMenuItem:
-              default: Convert with Converter…
+              default: Convert with Swivel…
             NSMessage: convertFiles
-            NSPortName: Converter
+            NSPortName: Swivel
             NSSendFileTypes: [public.item]
             NSRequiredContext: {}
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.Converter
-        PRODUCT_NAME: Converter
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.jonathanlotan.Swivel
+        PRODUCT_NAME: Swivel
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Not "Converter": that would clash with ConverterCore's Converter protocol.
         PRODUCT_MODULE_NAME: ConverterApp
@@ -98,7 +105,7 @@ targets:
     info:
       path: QuickAction/Info.plist
       properties:
-        CFBundleDisplayName: Convert with Converter
+        CFBundleDisplayName: Convert with Swivel
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
@@ -122,7 +129,7 @@ targets:
         com.apple.security.app-sandbox: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.Converter.QuickAction
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.jonathanlotan.Swivel.QuickAction
         PRODUCT_NAME: ConverterQuickAction
         GENERATE_INFOPLIST_FILE: NO
 
@@ -139,11 +146,11 @@ targets:
       - target: Converter
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.ConverterTests
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.jonathanlotan.SwivelTests
         GENERATE_INFOPLIST_FILE: YES
         # Xcode's XCTest is built for macOS 14; the app itself still targets 13.
         MACOSX_DEPLOYMENT_TARGET: "14.0"
-        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Converter.app/Contents/MacOS/Converter
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Swivel.app/Contents/MacOS/Swivel
         BUNDLE_LOADER: $(TEST_HOST)
 
 schemes:

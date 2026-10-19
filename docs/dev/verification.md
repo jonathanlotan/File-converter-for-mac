@@ -1,4 +1,8 @@
-# Converter: verification report
+# Swivel: verification report
+
+> Written during development with Claude Code, so "I" is Claude and "you" is
+> the author, Jonathan Lotan. The app was called **Converter** then; it's now
+> **Swivel**. To use it, see the [README](../../README.md).
 
 Date: 2026-10-19. Build: 0.2.0, Apple M5, macOS 26.6.2, Xcode 27.1.
 Plan and decisions: [plan.md](plan.md).
@@ -135,7 +139,7 @@ Status: **Built**, **Partly built** or **Skipped**. "Verified" says how.
 | App | Fully offline | Built | Automated | No networking symbols in the app, extension or CLI; the extension has no network entitlement |
 | Distribution | Developer ID, hardened runtime, notarization | Skipped | — | No Developer ID yet (decision 2). Ad-hoc signed; Xcode disables the hardened runtime for ad-hoc builds |
 | Distribution | Optional engines (ffmpeg, libwebp, LAME, libopus) | Skipped | — | Not approved (decision 1) |
-| Research | Comparison with the real app (REA) | Skipped | — | No copy of the app was provided |
+| Research | Comparison with Tangerine (REA) | Skipped | — | Not done: the design follows Tangerine's public description only |
 
 ## Known limitations
 
@@ -143,8 +147,8 @@ Status: **Built**, **Partly built** or **Skipped**. "Verified" says how.
   format can't record it.
 - Video resize presets fit the frame inside a 16:9 box. A portrait clip
   stored without rotation metadata comes out smaller than its label says.
-- Placeholders: the name "Converter", the bundle ID `com.example.Converter`,
-  and no app icon.
+- Until the 1.0 rename the app was called Converter, with the bundle ID
+  `com.example.Converter`. It's now Swivel, `io.github.jonathanlotan.Swivel`.
 - Debug builds contain the `DebugAutoPickConverter` test hook; Release
   builds don't.
 - Builds go to `~/Library/Caches/Converter`, because iCloud syncs
@@ -152,8 +156,8 @@ Status: **Built**, **Partly built** or **Skipped**. "Verified" says how.
 
 ## What's left before shipping
 
-1. Choose a name, a bundle ID and an icon.
-2. Join the Apple Developer Program, then sign with Developer ID, turn on
-   the hardened runtime, notarize, and ship a DMG.
-3. Put the project in git.
-4. Optionally: test on macOS 13 to 15, and decide on the optional engines.
+1. Done: the name (Swivel), the bundle ID and an Icon Composer icon.
+2. Join the Apple Developer Program; `make release` then signs with
+   Developer ID, turns on the hardened runtime, notarizes and builds a DMG.
+3. Done: the project is in git.
+4. Optionally: test on macOS 13 to 15 and 27, and decide on the optional engines.

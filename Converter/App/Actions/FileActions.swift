@@ -168,7 +168,7 @@ final class FileActionPerformer {
 
     func openInTerminal(_ urls: [URL]) {
         guard let app = settings?.terminalApp.url ?? TerminalApp.terminal.url else {
-            report("No terminal app found", "Converter opens folders in Terminal or iTerm2.")
+            report("No terminal app found", "Swivel opens folders in Terminal or iTerm2.")
             return
         }
         // A handful of windows at most.
