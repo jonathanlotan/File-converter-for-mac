@@ -7,7 +7,7 @@ CORE          := Packages/ConverterCore
 CORE_BUILD    := $(BUILD_ROOT)/ConverterCore
 SWIFT         := DEVELOPER_DIR=$(DEVELOPER_DIR) swift
 
-.PHONY: core core-test cli project app app-test run test readme-images release clean
+.PHONY: core core-test cli project app app-test run test readme-images release publish clean
 
 core:
 	$(SWIFT) build --package-path $(CORE) --scratch-path $(CORE_BUILD)
@@ -58,6 +58,10 @@ readme-images: project
 # Signed, notarized Swivel.dmg for a GitHub release (docs/dev/releasing.md).
 release:
 	./scripts/release.sh
+
+# Publishes that DMG: GitHub release, changelog date, Homebrew tap.
+publish:
+	./scripts/publish.sh
 
 clean:
 	rm -rf $(BUILD_ROOT)

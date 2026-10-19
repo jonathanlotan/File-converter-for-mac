@@ -23,10 +23,7 @@ people update with Homebrew or by downloading the new DMG.
    ```bash
    xcrun notarytool store-credentials swivel-notary --apple-id you@example.com --team-id TEAMID
    ```
-4. **Create the Homebrew tap**, a public repository named `homebrew-tap`, with a `Casks` folder.
-   ```bash
-   gh repo create jonathanlotan/homebrew-tap --public --description "Homebrew casks for Swivel"
-   ```
+4. The Homebrew tap (`jonathanlotan/homebrew-tap`) is created by `make publish` the first time.
 
 ## Each release
 
@@ -47,18 +44,20 @@ people update with Homebrew or by downloading the new DMG.
    It should print `accepted` and `source=Notarized Developer ID`. For a real test, download
    the DMG with a browser on another Mac or a fresh VM (so it's quarantined), open it, drag
    Swivel to Applications and open it: no warning should appear.
-5. Publish it. Keep the asset named `Swivel.dmg`: the README's download button links to
-   `releases/latest/download/Swivel.dmg`.
+5. Publish it:
    ```bash
-   gh release create v1.0.0 ~/Library/Caches/Converter/release/Swivel.dmg \
-     ~/Library/Caches/Converter/release/Swivel.dmg.sha256 --title "Swivel 1.0.0" --notes-file notes.md
+   make publish
    ```
-6. Update the tap: copy `packaging/homebrew/swivel.rb` to `Casks/swivel.rb` in
-   `jonathanlotan/homebrew-tap`, commit and push. Then check:
+   It checks that `Swivel.dmg` is notarized and matches the cask, dates the version's
+   changelog entry, commits that with the cask and pushes `main`. Then it creates the GitHub
+   release `v1.0.0` (or fills in and publishes the draft, if there is one) with `Swivel.dmg`,
+   using the changelog section as the notes, and copies the cask to `jonathanlotan/homebrew-tap`,
+   creating that repository the first time. The asset is always named `Swivel.dmg`, because
+   the README's download button links to `releases/latest/download/Swivel.dmg`.
+6. Check the tap:
    ```bash
    brew install --cask jonathanlotan/tap/swivel && swivel --version
    ```
-7. Commit the updated `packaging/homebrew/swivel.rb` here too.
 
 ## The official Homebrew cask
 

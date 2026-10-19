@@ -90,5 +90,4 @@ echo "  $OUT/Swivel.dmg ($(du -h "$OUT/Swivel.dmg" | cut -f1))"
 echo "  sha256 $SHA"
 echo "  packaging/homebrew/swivel.rb now points at v$VERSION"
 echo
-echo "Next: gh release create v$VERSION \"$OUT/Swivel.dmg\" \"$OUT/Swivel.dmg.sha256\" --title \"Swivel $VERSION\" --notes-file <notes>"
-echo "      then copy packaging/homebrew/swivel.rb to Casks/ in jonathanlotan/homebrew-tap and push."
+echo "Next: try the DMG, then run make publish (GitHub release and Homebrew tap)."
