@@ -5,7 +5,8 @@ import XCTest
 @testable import ConverterCore
 
 /// The file tools on input they should really change: a noisy high-bit-rate
-/// clip to compress, a 720p clip to shrink, PDFs to merge, images to
+/// clip to compress, a 720p clip to shrink, a tagged clip to clean, PDFs to
+/// merge, a tagged PDF to clean, lossless sound to compress, images to
 /// combine, an image-heavy PDF to compress, and text to recognise.
 final class FileToolTests: XCTestCase {
     var folder: URL!
@@ -76,6 +77,55 @@ final class FileToolTests: XCTestCase {
         XCTAssertTrue(ResizeVideoConverter.shrinks(shortSide: nil, to: 2160), "offered while the size isn't known")
     }
 
+    func testRemovingVideoMetadataKeepsThePictureSoundAndOrientation() async throws {
+        // A portrait clip (stored 320×240, rotated to show as 240×320) with sound.
+        let silent = folder.appendingPathComponent("silent.mov"), tone = folder.appendingPathComponent("tone.wav")
+        let aac = folder.appendingPathComponent("tone.m4a")
+        try await MediaSamples.writeVideo(to: silent, width: 320, height: 240, seconds: 2,
+                                          transform: CGAffineTransform(rotationAngle: .pi / 2))
+        try MediaSamples.writeTone(to: tone, seconds: 2, bits: 16)
+        try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", tone.path, aac.path])
+        let clip = folder.appendingPathComponent("IMG_0042.mp4")
+        try await MediaSamples.mux(video: silent, audio: aac, to: clip, fileType: .mp4,
+                                   metadata: MediaSamples.recorderMetadata())
+        let before = await sections(clip)
+        XCTAssertEqual(before["Details"]?["Location"]?.hasPrefix("+32.0800+034.7800"), true, "the fixture carries a location")
+        XCTAssertEqual(before["Details"]?["Title"], "Beach")
+        XCTAssertEqual(before["Video"]?["Dimensions"], "240 × 320 pixels")
+        let tagged = try await AVURLAsset(url: clip).load(.metadata).map { $0.identifier?.rawValue ?? "?" }
+        XCTAssertEqual(tagged.sorted(), ["uiso/date", "uiso/loci", "uiso/titl"], "MP4 keeps the tags it has ISO forms for")
+
+        let output = try await JobRunner.run(converter("video.stripMetadata"), on: InputFile(url: clip))
+        XCTAssertEqual(output.lastPathComponent, "IMG_0042 (no metadata).mp4", "same container")
+        let after = await sections(output)
+        XCTAssertNil(after["Details"], "no title, location, date, make or model left: \(after["Details"]?.fields ?? [])")
+        XCTAssertEqual(after["Media"]?["Duration"], "0:02")
+        XCTAssertEqual(after["Video"]?["Dimensions"], "240 × 320 pixels", "still upright")
+        XCTAssertEqual(after["Video"]?["Codec"], "H.264", "not re-encoded")
+        XCTAssertEqual(after["Audio"]?["Codec"], "AAC", "sound copied as it was")
+
+        let items = try await AVURLAsset(url: output).load(.metadata)
+        XCTAssertTrue(items.isEmpty, "nothing left at all: \(items.map { $0.identifier?.rawValue ?? "?" })")
+
+        // A MOV keeps the whole QuickTime set (com.apple.quicktime.*), make and model included.
+        let mov = folder.appendingPathComponent("phone.mov")
+        try await MediaSamples.writeVideo(to: mov, width: 64, height: 48, seconds: 1, metadata: MediaSamples.recorderMetadata())
+        let movTags = try await AVURLAsset(url: mov).load(.metadata).map { $0.identifier?.rawValue ?? "?" }
+        XCTAssertTrue(movTags.contains("mdta/com.apple.quicktime.make"), "\(movTags)")
+        XCTAssertTrue(movTags.contains("mdta/com.apple.quicktime.location.ISO6709"), "\(movTags)")
+        let cleaned = try await JobRunner.run(converter("video.stripMetadata"), on: InputFile(url: mov))
+        XCTAssertEqual(cleaned.lastPathComponent, "phone (no metadata).mov")
+        let left = try await AVURLAsset(url: cleaned).load(.metadata)
+        XCTAssertTrue(left.isEmpty, "\(left.map { $0.identifier?.rawValue ?? "?" })")
+        let cleanedInfo = await sections(cleaned)
+        XCTAssertNil(cleanedInfo["Details"])
+        XCTAssertEqual(cleanedInfo["Video"]?["Dimensions"], "64 × 48 pixels")
+    }
+
+    private func sections(_ url: URL) async -> [String: MetadataSection] {
+        Dictionary(uniqueKeysWithValues: await FileMetadata.sections(for: url).map { ($0.title, $0) })
+    }
+
     // MARK: PDF
 
     func testMergingPDFsInNameOrder() async throws {
@@ -95,6 +145,27 @@ final class FileToolTests: XCTestCase {
         XCTAssertEqual(pdf.page(at: 1)?.string?.contains("Page 1"), true, "part 10's pages come after part 2")
     }
 
+    func testRemovingPDFMetadataKeepsThePages() async throws {
+        let pdf = folder.appendingPathComponent("report.pdf")
+        try MediaSamples.writePDF(to: pdf, pages: 3, info: [
+            kCGPDFContextTitle: "Quarterly Report", kCGPDFContextAuthor: "Sam", kCGPDFContextSubject: "Numbers",
+            kCGPDFContextKeywords: ["finance", "q3"], kCGPDFContextCreator: "Spreadsheets 2.0",
+        ])
+        let before = await sections(pdf)["PDF"]
+        XCTAssertEqual(before?["Title"], "Quarterly Report", "the fixture is tagged")
+        XCTAssertEqual(before?["Keywords"], "finance, q3")
+
+        let output = try await JobRunner.run(converter("pdf.stripMetadata"), on: InputFile(url: pdf))
+        XCTAssertEqual(output.lastPathComponent, "report (no metadata).pdf")
+        let pdfSection = await sections(output)["PDF"]
+        let after = try XCTUnwrap(pdfSection)
+        XCTAssertEqual(after["Pages"], "3")
+        for label in ["Title", "Author", "Subject", "Keywords", "Application"] {
+            XCTAssertNil(after[label], "\(label) should be gone: \(after.fields)")
+        }
+        XCTAssertEqual(try XCTUnwrap(PDFDocument(url: output)).page(at: 2)?.string?.contains("Page 3"), true, "text intact")
+    }
+
     func testCompressingAnImageHeavyPDF() async throws {
         let pdf = folder.appendingPathComponent("scan.pdf")
         try MediaSamples.writeImagePDF(to: pdf)
@@ -102,6 +173,75 @@ final class FileToolTests: XCTestCase {
         XCTAssertEqual(output.lastPathComponent, "scan (compressed).pdf")
         XCTAssertLessThan(try size(output), try size(pdf))
         XCTAssertEqual(PDFFiles.pageCount(output), 1)
+    }
+
+    // MARK: Audio
+
+    func testCompressingLosslessAudioMakesASmallerM4A() async throws {
+        let wav = folder.appendingPathComponent("wav/music.wav"), flac = folder.appendingPathComponent("flac/music.flac")
+        for url in [wav, flac] {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        }
+        try MediaSamples.writeTone(to: wav, seconds: 4, bits: 24, noisy: true)
+        try await Subprocess.run("/usr/bin/afconvert", ["-f", "flac", "-d", "flac", wav.path, flac.path])
+        let compress = try converter("audio.compress")
+        let options = ConversionOptions(compressionAudioBitRate: 96)
+
+        for source in [wav, flac] {
+            let input = try InputFile(url: source)
+            XCTAssertTrue(compress.accepts(input), "\(source.lastPathComponent) is lossless, so always offered")
+            let output = try await JobRunner.run(compress, on: input, options: options)
+            XCTAssertEqual(output.lastPathComponent, "music (compressed).m4a", source.lastPathComponent)
+            XCTAssertLessThan(try size(output), try size(source) / 2, source.lastPathComponent)
+            let info = try XCTUnwrap(AudioInfo(url: output))
+            XCTAssertEqual(fourCC(info.formatID), "aac ")
+            XCTAssertEqual(info.channels, 2)
+            XCTAssertEqual(info.duration, 4, accuracy: 0.02, "exact length kept")
+            // The file's rate: the sound at 96 kbit/s plus a small header.
+            let rate = Double(try size(output)) * 8 / info.duration / 1000
+            XCTAssertEqual(rate, 100, accuracy: 12, "\(source.lastPathComponent) → about 96 kbit/s, got \(rate)")
+        }
+    }
+
+    func testCompressIsOnlyOfferedAboveTheTargetRate() async throws {
+        let wav = folder.appendingPathComponent("tone.wav")
+        try MediaSamples.writeTone(to: wav, seconds: 4, bits: 16)
+        // Constant bit rate (-s 0), so the files really are 256 and 96 kbit/s.
+        let high = folder.appendingPathComponent("high.m4a"), low = folder.appendingPathComponent("low.m4a")
+        try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", "-s", "0", "-b", "256000", wav.path, high.path])
+        try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", "-s", "0", "-b", "96000", wav.path, low.path])
+        let ids = { (url: URL) throws in ConverterRegistry.standard.converters(for: [try InputFile(url: url)]).map(\.id) }
+        XCTAssertTrue(try ids(high).contains("audio.compress"), "256 kbit/s AAC can shrink to 128")
+        XCTAssertFalse(try ids(low).contains("audio.compress"), "96 kbit/s AAC is already below 128")
+
+        let output = try await JobRunner.run(converter("audio.compress"), on: InputFile(url: high))
+        XCTAssertLessThan(try size(output), try size(high) * 2 / 3)
+
+        do {
+            // The menu went by the standard 128; the setting may say otherwise.
+            try await JobRunner.run(converter("audio.compress"), on: InputFile(url: high),
+                                    options: ConversionOptions(compressionAudioBitRate: 256))
+            XCTFail("a 256 kbit/s file can't shrink to 256 kbit/s")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "high.m4a is already at 256 kbit/s or less.")
+        }
+        XCTAssertEqual(try folderContents(folder), ["high (compressed).m4a", "high.m4a", "low.m4a", "tone.wav"])
+    }
+
+    func testShrinkEstimateUsesSizeAndLength() {
+        let shrinks = { (seconds: Double, bytes: Int, kbps: Int) in
+            CompressAudioConverter.shrinks(format: kAudioFormatMPEG4AAC, channels: 2, seconds: seconds, bytes: bytes, to: kbps)
+        }
+        XCTAssertTrue(CompressAudioConverter.shrinks(format: kAudioFormatFLAC, channels: 2, seconds: 10, bytes: 100, to: 128),
+                      "lossless always shrinks")
+        // 10 s at 320 kbit/s is 400 000 bytes.
+        XCTAssertTrue(shrinks(10, 400_000, 128))
+        XCTAssertFalse(shrinks(10, 165_000, 128), "128 kbit/s plus its container's overhead")
+        XCTAssertFalse(shrinks(10, 120_000, 128))
+        XCTAssertTrue(shrinks(10, 120_000, 64), "but it would shrink to 64")
+        XCTAssertFalse(CompressAudioConverter.shrinks(format: kAudioFormatMPEG4AAC, channels: 1, seconds: 10, bytes: 80_000, to: 128),
+                       "mono is encoded at half the rate")
+        XCTAssertTrue(shrinks(0, 120_000, 128), "offered while the length isn't known")
     }
 
     // MARK: Images

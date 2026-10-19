@@ -12,9 +12,10 @@ final class MetadataModel: ObservableObject {
     @Published private(set) var sections: [MetadataSection] = []
     @Published private(set) var isLoading = true
     @Published private(set) var thumbnail: NSImage?
-    /// True for an image with camera, location or descriptive tags that
-    /// Remove Metadata can take out.
-    @Published private(set) var canRemoveMetadata = false
+    /// The Remove Metadata tool for this file, when it has tags worth
+    /// taking out: a photo's camera, location or description; a video's
+    /// recorder details; a PDF's title, author, subject, keywords or maker.
+    @Published private(set) var metadataRemover: (any Converter)?
     private var loading: Task<Void, Never>?
 
     /// `urls` must not be empty.
@@ -40,10 +41,24 @@ final class MetadataModel: ObservableObject {
         url.lastPathComponent + "\n\n" + FileMetadata.text(sections)
     }
 
+    var canRemoveMetadata: Bool { metadataRemover != nil }
+
     func show(_ newIndex: Int) {
         guard urls.indices.contains(newIndex), newIndex != index else { return }
         index = newIndex
         load()
+    }
+
+    /// Which converter cleans `input`, judging by the sections shown for it.
+    nonisolated static func remover(for sections: [MetadataSection], input: InputFile) -> (any Converter)? {
+        let titles = Set(sections.map(\.title))
+        let pdf = sections.first { $0.title == "PDF" }
+        let candidates: [(tagged: Bool, converter: any Converter)] = [
+            (!titles.isDisjoint(with: ["Camera", "Location", "Description"]), StripImageMetadataConverter()),
+            (titles.contains("Details"), RemoveVideoMetadataConverter()),
+            (["Title", "Author", "Subject", "Keywords", "Application"].contains { pdf?[$0] != nil }, RemovePDFMetadataConverter()),
+        ]
+        return candidates.first { $0.tagged && $0.converter.accepts(input) }?.converter
     }
 
     /// Waits for the current file's details (for tests).
@@ -54,16 +69,16 @@ final class MetadataModel: ObservableObject {
     private func load() {
         loading?.cancel()
         isLoading = true
-        canRemoveMetadata = false
+        metadataRemover = nil
         thumbnail = NSWorkspace.shared.icon(forFile: url.path)
         let url = url
         loading = Task { [weak self] in
             let sections = await FileMetadata.sections(for: url)
+            let remover = (try? InputFile(url: url)).flatMap { Self.remover(for: sections, input: $0) }
             guard let self, !Task.isCancelled else { return }
             self.sections = sections
             self.isLoading = false
-            let tagged = sections.contains { ["Camera", "Location", "Description"].contains($0.title) }
-            self.canRemoveMetadata = tagged && (try? InputFile(url: url)).map(StripImageMetadataConverter().accepts) == true
+            self.metadataRemover = remover
         }
         guard loadsThumbnails else { return }
         let request = QLThumbnailGenerator.Request(fileAt: url, size: CGSize(width: 64, height: 64),
@@ -84,8 +99,8 @@ final class MetadataModel: ObservableObject {
 /// media or PDF details, all selectable, with Copy All.
 @MainActor
 final class MetadataWindowController: NSObject, NSWindowDelegate {
-    /// Saves a copy of an image without its metadata.
-    private let removeMetadata: (InputFile) -> Void
+    /// Saves a copy of the file without its metadata, with the given tool.
+    private let removeMetadata: (any Converter, InputFile) -> Void
     private var window: NSWindow?
     private(set) var model: MetadataModel?
     private var title: AnyCancellable?
@@ -93,7 +108,7 @@ final class MetadataWindowController: NSObject, NSWindowDelegate {
     /// False in tests, so no window appears.
     var showsWindow = true
 
-    init(removeMetadata: @escaping (InputFile) -> Void) {
+    init(removeMetadata: @escaping (any Converter, InputFile) -> Void) {
         self.removeMetadata = removeMetadata
     }
 
@@ -108,7 +123,8 @@ final class MetadataWindowController: NSObject, NSWindowDelegate {
         let view = MetadataView(model: model,
                                 onCopy: { [weak self] in self?.copy(model.text) },
                                 onRemoveMetadata: { [weak self] in
-                                    if let input = try? InputFile(url: model.url) { self?.removeMetadata(input) }
+                                    guard let remover = model.metadataRemover, let input = try? InputFile(url: model.url) else { return }
+                                    self?.removeMetadata(remover, input)
                                 })
         window.contentView = NSHostingView(rootView: view)
         title = model.$index.sink { [weak window] index in
@@ -222,7 +238,7 @@ struct MetadataView: View {
             Spacer()
             if model.canRemoveMetadata {
                 Button("Remove Metadata", action: onRemoveMetadata)
-                    .help("Saves a copy with the camera, location and description tags removed. The original stays as it is.")
+                    .help("Saves a copy without the camera, location, title, author and date tags. The original stays as it is.")
             }
             Button("Copy All", action: onCopy)
                 .disabled(model.sections.isEmpty)

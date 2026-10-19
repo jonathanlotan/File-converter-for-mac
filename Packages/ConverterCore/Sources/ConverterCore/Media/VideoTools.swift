@@ -222,17 +222,8 @@ public struct RemoveAudioConverter: Converter {
         MediaTypes.isMovie(input)
     }
 
-    /// Same container when it's one passthrough can write, otherwise MOV.
-    private func container(for input: InputFile) -> (fileExtension: String, type: AVFileType) {
-        switch input.url.pathExtension.lowercased() {
-        case "mp4": return ("mp4", .mp4)
-        case "m4v": return ("m4v", .m4v)
-        default: return ("mov", .mov)
-        }
-    }
-
     public func output(for input: InputFile) -> OutputSpec {
-        OutputSpec(fileExtension: container(for: input).fileExtension, nameSuffix: " (no audio)")
+        OutputSpec(fileExtension: passthroughContainer(for: input).fileExtension, nameSuffix: " (no audio)")
     }
 
     public func convert(_ input: InputFile, to destination: URL, options: ConversionOptions, progress: ProgressHandler) async throws {
@@ -249,13 +240,75 @@ public struct RemoveAudioConverter: Converter {
             try copy.insertTimeRange(range, of: track, at: .zero)
             copy.preferredTransform = try await track.load(.preferredTransform)
         }
-        let type = container(for: input).type
-        guard await AVAssetExportSession.compatibility(ofExportPreset: AVAssetExportPresetPassthrough, with: composition, outputFileType: type),
-              let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
-            throw ConversionError.unsupported("This video's picture can't be copied into \(type == .mov ? "MOV" : "MP4").")
-        }
-        session.outputURL = destination
-        session.outputFileType = type
+        let session = try await passthroughSession(for: composition, as: passthroughContainer(for: input).type, to: destination)
         try await ExportSessionRunner(session).run(progress: progress)
     }
+}
+
+// MARK: - Remove metadata
+
+/// Copies a video without what its recorder wrote about it: location,
+/// date, make and model, title and the rest. Picture, sound and subtitles
+/// aren't re-encoded, and the clip stays upright. Timed metadata tracks
+/// (an iPhone's frame-by-frame camera and motion data) are left out too.
+public struct RemoveVideoMetadataConverter: Converter {
+    public init() {}
+
+    public var id: String { "video.stripMetadata" }
+    public var title: String { "Remove Metadata" }
+    public var role: ConverterRole { .tool }
+    public var isAvailable: Bool { true }
+
+    /// Media that is the clip itself rather than a description of it.
+    static let copiedMediaTypes: Set<AVMediaType> = [.video, .audio, .subtitle, .closedCaption, .depthData]
+
+    public func accepts(_ input: InputFile) -> Bool {
+        MediaTypes.isMovie(input)
+    }
+
+    public func output(for input: InputFile) -> OutputSpec {
+        OutputSpec(fileExtension: passthroughContainer(for: input).fileExtension, nameSuffix: " (no metadata)")
+    }
+
+    public func convert(_ input: InputFile, to destination: URL, options: ConversionOptions, progress: ProgressHandler) async throws {
+        let asset = AVURLAsset(url: input.url)
+        let tracks = try await asset.load(.tracks)
+        guard tracks.contains(where: { $0.mediaType == .video }) else {
+            throw ConversionError.unsupported("\(input.url.lastPathComponent) has no picture.")
+        }
+        let range = CMTimeRange(start: .zero, duration: try await asset.load(.duration))
+        let composition = AVMutableComposition()
+        for track in tracks where Self.copiedMediaTypes.contains(track.mediaType) {
+            guard let copy = composition.addMutableTrack(withMediaType: track.mediaType, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+            try copy.insertTimeRange(range, of: track, at: .zero)
+            if track.mediaType == .video { copy.preferredTransform = try await track.load(.preferredTransform) }
+        }
+        let session = try await passthroughSession(for: composition, as: passthroughContainer(for: input).type, to: destination)
+        // The composition carries none of the original's tags; these make
+        // sure the export adds nothing but copyright-style items either.
+        session.metadata = []
+        session.metadataItemFilter = .forSharing()
+        try await ExportSessionRunner(session).run(progress: progress)
+    }
+}
+
+/// The container a passthrough copy of `input` is written to: the same one
+/// when passthrough can write it, otherwise MOV.
+private func passthroughContainer(for input: InputFile) -> (fileExtension: String, type: AVFileType) {
+    switch input.url.pathExtension.lowercased() {
+    case "mp4": return ("mp4", .mp4)
+    case "m4v": return ("m4v", .m4v)
+    default: return ("mov", .mov)
+    }
+}
+
+/// An export session that copies `composition` into `type` without re-encoding.
+private func passthroughSession(for composition: AVMutableComposition, as type: AVFileType, to destination: URL) async throws -> AVAssetExportSession {
+    guard await AVAssetExportSession.compatibility(ofExportPreset: AVAssetExportPresetPassthrough, with: composition, outputFileType: type),
+          let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+        throw ConversionError.unsupported("This video's tracks can't be copied into \(type == .mov ? "MOV" : "MP4").")
+    }
+    session.outputURL = destination
+    session.outputFileType = type
+    return session
 }

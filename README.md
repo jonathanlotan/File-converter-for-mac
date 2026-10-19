@@ -107,7 +107,7 @@ size and the crop is scaled to it. With several photos it steps through them, ke
     </td>
   </tr>
   <tr>
-    <td valign="top"><b>Metadata</b> shows what a file says about itself: camera, lens, exposure and location for photos; tracks and codecs for audio and video; pages and author for PDFs. <b>Remove Metadata</b> saves a clean copy.</td>
+    <td valign="top"><b>Metadata</b> shows what a file says about itself: camera, lens, exposure and location for photos; tracks and codecs for audio and video; pages and author for PDFs. <b>Remove Metadata</b> saves a clean copy of a photo, video or PDF.</td>
     <td valign="top"><b>Settings</b>: the keys for each ring, image and video quality, favourite formats, launch at login, and whether the menu bar icon shows.</td>
   </tr>
 </table>
@@ -130,7 +130,9 @@ size and the crop is scaled to it. With several photos it steps through them, ke
 - Video: MP4 (H.264 or HEVC), MOV, MOV (ProRes), M4V, GIF, or a still frame.
 - The sound from a video: M4A, WAV, AIFF or FLAC.
 - Audio: M4A (AAC or lossless), WAV, AIFF, FLAC, AAC, CAF. 24-bit stays 24-bit.
-- Tools: compress, resize to 4K, 1080p, 720p or 540p (only sizes smaller than the clip), remove audio.
+- Video tools: compress, resize to 4K, 1080p, 720p or 540p (only sizes smaller than the clip), remove audio,
+  remove metadata (location, date, camera and title, without re-encoding).
+- Audio tools: compress to a smaller AAC file (offered for lossless audio and anything above the chosen rate).
 </details>
 
 <details>
@@ -138,7 +140,7 @@ size and the crop is scaled to it. With several photos it steps through them, ke
 
 - Between plain text, RTF, HTML, Word (.docx and .doc) and OpenDocument, and any of them to PDF.
 - PDF to text, or to PNG, JPEG, HEIC or TIFF pages.
-- Merge, split and compress PDFs, and recognize text in scans.
+- Merge, split and compress PDFs, remove their metadata (title, author, keywords), and recognize text in scans.
 </details>
 
 <details>

@@ -55,6 +55,45 @@ final class MetadataWindowTests: XCTestCase {
         XCTAssertEqual(model.sections.map(\.title), ["File", "Image", "Camera", "Location", "Description"])
         XCTAssertEqual(model.sections.first { $0.title == "Location" }?["Coordinates"], "51.500700, -0.124600")
         XCTAssertTrue(model.canRemoveMetadata)
+        XCTAssertEqual(model.metadataRemover?.id, "image.stripMetadata")
+    }
+
+    /// A three-page PDF with a title and an author.
+    private func taggedPDF() throws -> URL {
+        let url = folder.appendingPathComponent("report.pdf")
+        var box = CGRect(x: 0, y: 0, width: 595, height: 842)
+        let info: [CFString: Any] = [kCGPDFContextTitle: "Quarterly Report", kCGPDFContextAuthor: "Sam"]
+        let context = try XCTUnwrap(CGContext(url as CFURL, mediaBox: &box, info as CFDictionary))
+        for _ in 0..<3 { context.beginPDFPage(nil); context.endPDFPage() }
+        context.closePDF()
+        return url
+    }
+
+    func testTaggedPDFCanBeCleaned() async throws {
+        let model = MetadataModel(urls: [try taggedPDF()], loadsThumbnails: false)
+        await model.loaded()
+        XCTAssertEqual(model.sections.first { $0.title == "PDF" }?["Author"], "Sam")
+        XCTAssertEqual(model.metadataRemover?.id, "pdf.stripMetadata")
+    }
+
+    func testEachKindOfFileGetsItsOwnCleaner() throws {
+        let movie = folder.appendingPathComponent("clip.mov"), pdf = folder.appendingPathComponent("plain.pdf")
+        try Data().write(to: movie) // the choice only looks at the type and the sections
+        try Data().write(to: pdf)
+        let file = MetadataSection("File", [MetadataField("Kind", "QuickTime movie")])
+        let details = MetadataSection("Details", [MetadataField("Location", "+51.5007-000.1246/")])
+        let remover = { (sections: [MetadataSection], url: URL) throws in
+            MetadataModel.remover(for: sections, input: try InputFile(url: url))?.id
+        }
+        XCTAssertEqual(try remover([file, details], movie), "video.stripMetadata")
+        XCTAssertNil(try remover([file, MetadataSection("Video", [MetadataField("Codec", "H.264")])], movie), "nothing recorded")
+        XCTAssertNil(try remover([file, details], pdf), "a PDF has no recorder details")
+
+        let producer = MetadataSection("PDF", [MetadataField("Pages", "2"), MetadataField("PDF Producer", "Quartz PDFContext")])
+        XCTAssertNil(try remover([file, producer], pdf), "every PDF names its producer; that's not worth a button")
+        let authored = MetadataSection("PDF", [MetadataField("Pages", "2"), MetadataField("Author", "Sam")])
+        XCTAssertEqual(try remover([file, authored], pdf), "pdf.stripMetadata")
+        XCTAssertNil(try remover([file, authored], movie), "the sections and the file must agree")
     }
 
     func testSteppingThroughASelection() async throws {
@@ -73,7 +112,7 @@ final class MetadataWindowTests: XCTestCase {
     func testCopyAllAndRemoveMetadata() async throws {
         let jpeg = try taggedPhoto()
         var removed: [InputFile] = []
-        let controller = MetadataWindowController { removed.append($0) }
+        let controller = MetadataWindowController { _, input in removed.append(input) }
         controller.showsWindow = false
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("ConverterTests-\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }

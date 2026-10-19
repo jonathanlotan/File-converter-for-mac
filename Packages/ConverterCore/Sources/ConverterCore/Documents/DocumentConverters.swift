@@ -233,7 +233,8 @@ public enum DocumentConverters {
         let text: [any Converter] = TextFormat.all.map { TextDocumentConverter($0) }
         let pdfText: [any Converter] = [PDFTextConverter()]
         let pdfImages: [any Converter] = [ImageFormat.png, .jpeg, .heic, .tiff].map { PDFToImagesConverter($0) }
-        let tools: [any Converter] = [MergePDFsConverter(), SplitPDFConverter(), CompressPDFConverter(), RecognizeTextConverter()]
+        let tools: [any Converter] = [MergePDFsConverter(), SplitPDFConverter(), CompressPDFConverter(), RemovePDFMetadataConverter(),
+                                      RecognizeTextConverter()]
         return text + pdfText + pdfImages + tools
     }()
 }

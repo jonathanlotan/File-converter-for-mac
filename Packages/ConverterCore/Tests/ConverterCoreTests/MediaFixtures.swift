@@ -110,29 +110,42 @@ enum MediaSamples {
 
     // MARK: - Builders
 
-    static func writeTone(to url: URL, seconds: Double, bits: Int, rate: Double = 44_100) throws {
+    /// A 440 Hz stereo tone. `noisy` adds hiss: a pure tone is the worst
+    /// case for AAC (one spectral line that must stay exact), so the
+    /// encoder spends far more than the asked-for bit rate on it.
+    static func writeTone(to url: URL, seconds: Double, bits: Int, rate: Double = 44_100, noisy: Bool = false) throws {
         let settings: [String: Any] = [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: rate, AVNumberOfChannelsKey: 2,
                                        AVLinearPCMBitDepthKey: bits, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false]
         let file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
         let frames = AVAudioFrameCount(seconds * rate)
         let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: frames)!
         buffer.frameLength = frames
+        var seed: UInt64 = 7
         for channel in 0..<2 {
             let samples = buffer.floatChannelData![channel]
-            for i in 0..<Int(frames) { samples[i] = Float(sin(Double(i) * 2 * .pi * 440 / rate) * 0.4) }
+            for i in 0..<Int(frames) {
+                samples[i] = Float(sin(Double(i) * 2 * .pi * 440 / rate) * 0.4)
+                guard noisy else { continue }
+                seed = seed &* 6364136223846793005 &+ 1442695040888963407
+                samples[i] = samples[i] * 0.75 + Float(Int64(bitPattern: seed) >> 40) / Float(1 << 23) * 0.2
+            }
         }
         try file.write(from: buffer)
     }
 
     /// `noisy` fills frames with random pixels at a high bit rate: footage
-    /// that a re-encode can really shrink.
+    /// that a re-encode can really shrink. `metadata` is written as the
+    /// movie's QuickTime tags, and `transform` as the track's orientation.
     static func writeVideo(to url: URL, width: Int, height: Int, seconds: Double, fps: Int32 = 30,
-                           noisy: Bool = false) async throws {
+                           noisy: Bool = false, metadata: [AVMetadataItem] = [],
+                           transform: CGAffineTransform = .identity) async throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        writer.metadata = metadata
         var settings: [String: Any] = [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height]
         if noisy { settings[AVVideoCompressionPropertiesKey] = [AVVideoAverageBitRateKey: 20_000_000] }
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
         input.expectsMediaDataInRealTime = false
+        input.transform = transform
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: width, kCVPixelBufferHeightKey as String: height,
@@ -172,27 +185,51 @@ enum MediaSamples {
         guard writer.status == .completed else { throw writer.error ?? ConversionError.encoderFailed("video fixture") }
     }
 
-    /// Puts a video track and an audio track into one movie without re-encoding.
-    static func mux(video: URL, audio: URL, to url: URL, fileType: AVFileType) async throws {
+    /// What a phone records about a clip: where, when, and with what.
+    static func recorderMetadata() -> [AVMetadataItem] {
+        func item(_ identifier: AVMetadataIdentifier, _ value: String) -> AVMetadataItem {
+            let item = AVMutableMetadataItem()
+            item.identifier = identifier
+            item.value = value as NSString
+            item.extendedLanguageTag = "und"
+            return item
+        }
+        return [
+            item(.quickTimeMetadataLocationISO6709, "+32.0800+034.7800/"),
+            item(.quickTimeMetadataTitle, "Beach"),
+            item(.quickTimeMetadataCreationDate, "2024-05-01T10:00:00+0300"),
+            item(.quickTimeMetadataMake, "TestCam"),
+            item(.quickTimeMetadataModel, "One"),
+        ]
+    }
+
+    /// Puts a video track and an audio track into one movie without
+    /// re-encoding, tagged with `metadata`.
+    static func mux(video: URL, audio: URL, to url: URL, fileType: AVFileType, metadata: [AVMetadataItem] = []) async throws {
         let composition = AVMutableComposition()
         let videoAsset = AVURLAsset(url: video), audioAsset = AVURLAsset(url: audio)
         let videoTrack = try await videoAsset.loadTracks(withMediaType: .video)[0]
         let audioTrack = try await audioAsset.loadTracks(withMediaType: .audio)[0]
         let range = CMTimeRange(start: .zero, duration: try await videoAsset.load(.duration))
-        try composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)!
-            .insertTimeRange(range, of: videoTrack, at: .zero)
+        let video = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)!
+        try video.insertTimeRange(range, of: videoTrack, at: .zero)
+        video.preferredTransform = try await videoTrack.load(.preferredTransform)
         let audioRange = CMTimeRange(start: .zero, duration: min(range.duration, try await audioAsset.load(.duration)))
         try composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)!
             .insertTimeRange(audioRange, of: audioTrack, at: .zero)
         let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough)!
         session.outputURL = url
         session.outputFileType = fileType
+        if !metadata.isEmpty { session.metadata = metadata }
         try await ExportSessionRunner(session).run { _ in }
     }
 
-    static func writePDF(to url: URL, pages: Int) throws {
+    /// `info` is the document information (`kCGPDFContextTitle` and friends).
+    static func writePDF(to url: URL, pages: Int, info: [CFString: Any] = [:]) throws {
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
-        guard let context = CGContext(url as CFURL, mediaBox: &box, nil) else { throw ConversionError.encoderFailed("pdf fixture") }
+        guard let context = CGContext(url as CFURL, mediaBox: &box, info as CFDictionary) else {
+            throw ConversionError.encoderFailed("pdf fixture")
+        }
         let font = CTFontCreateWithName("Helvetica" as CFString, 24, nil)
         for page in 1...pages {
             context.beginPDFPage(nil)

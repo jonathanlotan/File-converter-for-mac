@@ -132,6 +132,72 @@ public struct AudioConverter: Converter {
     }
 }
 
+// MARK: - Compress
+
+/// Re-encodes a sound file as AAC in M4A at the lower bit rate of
+/// `ConversionOptions.compressionAudioBitRate`. Offered for lossless files
+/// and for lossy ones recorded well above that rate. Gives up rather than
+/// saving a file that isn't smaller.
+public struct CompressAudioConverter: Converter {
+    public init() {}
+
+    public var id: String { "audio.compress" }
+    public var title: String { "Compress" }
+    public var role: ConverterRole { .tool }
+    public var isAvailable: Bool { AudioFormat.m4a.isEncodable }
+
+    static let losslessFormats: Set<AudioFormatID> = [kAudioFormatLinearPCM, kAudioFormatAppleLossless, kAudioFormatFLAC]
+
+    /// Menus don't know the chosen rate, so the standard one decides what is
+    /// offered; `convert` checks the real one.
+    public func accepts(_ input: InputFile) -> Bool {
+        guard MediaTypes.isAudio(input), let info = input.audio else { return false }
+        return Self.shrinks(info, bytes: Self.fileSize(input.url), to: ConversionOptions.default.compressionAudioBitRate)
+    }
+
+    static func shrinks(_ info: AudioInfo, bytes: Int, to kbps: Int) -> Bool {
+        shrinks(format: info.formatID, channels: info.channels, seconds: info.duration, bytes: bytes, to: kbps)
+    }
+
+    /// Whether AAC at `kbps` (stereo; mono gets half) should make the file
+    /// smaller: always for lossless audio, otherwise when its bit rate,
+    /// estimated from size and length, is clearly above the target. A file
+    /// at the target rate reads a little higher because of its container,
+    /// and one whose size or length isn't known is offered and checked
+    /// afterwards.
+    static func shrinks(format: AudioFormatID, channels: Int, seconds: Double, bytes: Int, to kbps: Int) -> Bool {
+        if losslessFormats.contains(format) { return true }
+        guard seconds > 0, bytes > 0 else { return true }
+        let estimated = Double(bytes) * 8 / seconds / 1000
+        let target = Double(channels == 1 ? kbps / 2 : kbps)
+        return estimated > target * 1.1
+    }
+
+    public func output(for input: InputFile) -> OutputSpec {
+        OutputSpec(fileExtension: AudioFormat.m4a.fileExtension, nameSuffix: " (compressed)")
+    }
+
+    public func convert(_ input: InputFile, to destination: URL, options: ConversionOptions, progress: ProgressHandler) async throws {
+        guard let info = input.audio else { throw ConversionError.unreadableInput(input.url) }
+        let rate = options.compressionAudioBitRate
+        let before = Self.fileSize(input.url)
+        guard Self.shrinks(info, bytes: before, to: rate) else {
+            throw ConversionError.nothingToDo("\(input.url.lastPathComponent) is already at \(rate) kbit/s or less.")
+        }
+        try await AudioExport.run(from: input.url, to: destination, format: .m4a, sourceBits: info.bitsPerSample,
+                                  exactLength: info.exactFrames.map { (info.sampleRate, $0) },
+                                  bitRate: rate, progress: progress)
+        let after = Self.fileSize(destination)
+        if before > 0 && after >= before * 95 / 100 {
+            throw ConversionError.nothingToDo("\(input.url.lastPathComponent) is already well compressed; the result wasn't smaller.")
+        }
+    }
+
+    private static func fileSize(_ url: URL) -> Int {
+        (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+    }
+}
+
 /// Decodes any AVFoundation-readable sound to PCM with AVAssetReader and
 /// encodes it with ExtAudioFile, so one path serves every audio output.
 enum AudioExport {
@@ -197,7 +263,8 @@ enum AudioExport {
                     .flatMap({ CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }) else {
                     throw ConversionError.encoderFailed("unknown decoded audio format")
                 }
-                file = try makeFile(at: destination, format: format, pcm: pcm, sourceBits: sourceBits, bitRate: bitRate)
+                file = try makeFile(at: destination, format: format, pcm: pcm, sourceBits: sourceBits, bitRate: bitRate,
+                                    seconds: duration)
                 bytesPerFrame = pcm.mBytesPerFrame
                 totalFrames = max(1, duration * pcm.mSampleRate)
                 if let exactLength {
@@ -231,14 +298,24 @@ enum AudioExport {
         try check(ExtAudioFileDispose(finished), "finishing \(format.title)")
     }
 
+    /// `seconds` is the length of the sound, so the file sets aside the
+    /// right amount of room for its header: left to guess, an M4A keeps
+    /// tens of kilobytes of padding, which dwarfs a short clip.
     private static func makeFile(at url: URL, format: AudioFormat, pcm: AudioStreamBasicDescription,
-                                 sourceBits: Int, bitRate: Int) throws -> ExtAudioFileRef {
+                                 sourceBits: Int, bitRate: Int, seconds: Double) throws -> ExtAudioFileRef {
         var fileFormat = try format.streamDescription(sampleRate: pcm.mSampleRate, channels: Int(pcm.mChannelsPerFrame),
                                                       sourceBits: sourceBits)
         var file: ExtAudioFileRef?
         try check(ExtAudioFileCreateWithURL(url as CFURL, format.fileType, &fileFormat, nil,
                                             AudioFileFlags.eraseFile.rawValue, &file), "creating \(format.title)")
         guard let file else { throw ConversionError.encoderFailed("creating \(format.title)") }
+        var audioFile: AudioFileID?
+        var fileSize = UInt32(MemoryLayout<AudioFileID?>.size)
+        if seconds > 0, ExtAudioFileGetProperty(file, kExtAudioFileProperty_AudioFile, &fileSize, &audioFile) == noErr,
+           let audioFile {
+            var reserve = Float64(seconds)
+            AudioFileSetProperty(audioFile, kAudioFilePropertyReserveDuration, UInt32(MemoryLayout<Float64>.size), &reserve)
+        }
         var client = pcm
         try check(ExtAudioFileSetProperty(file, kExtAudioFileProperty_ClientDataFormat,
                                           UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &client),
