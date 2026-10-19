@@ -35,6 +35,7 @@ brew install --cask jonathanlotan/tap/swivel
 - **Nothing to allow.** The wheel works without Accessibility or Input Monitoring permission ([how](#how-it-works)).
 - **Never touches the network.** There's no network code, and a test fails if networking APIs get linked in.
 - **Small and native.** Swift and Apple's own frameworks, signed and notarized by Apple.
+- **Works with Shortcuts.** A Convert File action, plus Convert to JPEG, Compress and Convert to PDF ready-made, in Spotlight too.
 - **A command line too.** The same engine as `swivel convert --to image.jpeg *.heic`, installed with the app.
 
 ## One gesture, three rings
@@ -210,8 +211,8 @@ they may come later as an optional add-on.
 <details>
 <summary><b>Which Macs and macOS versions?</b></summary>
 
-Apple silicon Macs with macOS 13 Ventura or later. It's tested on macOS 26.6; reports from
-other versions are welcome in [Issues](https://github.com/jonathanlotan/Swivel/issues).
+Apple silicon Macs with macOS 13 Ventura or later. It's tested on macOS 26, and the conversion
+engine's tests also run on macOS 15 for every change. Reports from other versions are welcome in [Issues](https://github.com/jonathanlotan/Swivel/issues).
 </details>
 
 <details>
