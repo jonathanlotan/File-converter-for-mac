@@ -226,6 +226,14 @@ final class RadialMenuModel: ObservableObject {
         case "image.compress", "video.compress", "audio.compress", "pdf.compress": return "arrow.down.right.and.arrow.up.left"
         case "image.stripMetadata", "video.stripMetadata", "pdf.stripMetadata": return "eye.slash"
         case let id where id.hasPrefix("image.crop."): return "crop"
+        case "image.rotate.left": return "rotate.left"
+        case "image.rotate.right": return "rotate.right"
+        case "image.rotate.180": return "arrow.clockwise"
+        case "image.flip.horizontal": return "arrow.left.and.right.righttriangle.left.righttriangle.right"
+        case "image.flip.vertical": return "arrow.up.and.down.righttriangle.up.righttriangle.down"
+        case let id where id.hasPrefix("image.fit."): return "scalemass"
+        // A macOS 14 symbol, like the tool itself.
+        case "image.removeBackground": return "person.and.background.dotted"
         case "ocr.text": return "text.viewfinder"
         case "video.removeAudio": return "speaker.slash"
         case "pdf.split", "pdf.merge", "image.combinePDF": return "doc.on.doc"
@@ -241,6 +249,8 @@ final class RadialMenuModel: ObservableObject {
         switch title {
         case "Resize": return "arrow.up.left.and.arrow.down.right"
         case "Crop": return "crop"
+        case "Rotate": return "rotate.right"
+        case "Fit to Size": return "scalemass"
         case FileAction.shareGroup: return "square.and.arrow.up"
         case "Audio": return "waveform"
         case "Archive": return "archivebox"

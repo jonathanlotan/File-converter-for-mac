@@ -573,6 +573,9 @@ const SYMBOLS = {
   resize: "M14 4.5h5.5V10M19.5 4.5 13 11M10 19.5H4.5V14M4.5 19.5 11 13",
   crop: "M6.5 2.5v15h15M2.5 6.5h15v15",
   compress: "M4.5 14h5.5v5.5M10 14l-6.5 6.5M19.5 10H14V4.5M14 10l6.5-6.5",
+  rotate: "M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 3.5v4h-4",
+  scale: "M12 4.5v15M6.5 19.5h11M5.5 7.5h13M5.5 7.5 3 14h5ZM18.5 7.5 16 14h5Z",
+  cutout: "M12 12.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6.5 19.5a5.5 5.5 0 0 1 11 0M3.5 7V3.5H7M17 3.5h3.5V7M20.5 17v3.5H17M7 20.5H3.5V17",
   eyeSlash: "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM9.5 12a2.5 2.5 0 0 0 5 0M4 4l16 16",
   text: "M3.5 8V3.5H8M16 3.5h4.5V8M20.5 16v4.5H16M8 20.5H3.5V16M7.5 9h9M7.5 12h9M7.5 15h6",
   archive: "M3.5 4.5h17v4h-17ZM5 8.5v11h14v-11M10 12h4",
@@ -677,7 +680,16 @@ function menusFor(file) {
     }).filter(Boolean);
     crops.push({ type: "editor", title: "Custom…", out: () => ({ base: `${base} (cropped)`, ext }) });
     tools.push(group("Crop", crops, "crop"));
-    if (["jpg", "heic", "avif", "jp2"].includes(ext)) tools.push(conv("Compress", keep(ext, { base: `${base} (compressed)`, w: file.w, h: file.h }), { symbol: "compress" }));
+    const turns = [["Left", "rotated left", true], ["Right", "rotated right", true], ["180°", "rotated 180°", false],
+                   ["Flip Horizontal", "flipped horizontally", false], ["Flip Vertical", "flipped vertically", false]];
+    tools.push(group("Rotate", turns.map(([t, s, quarter]) =>
+      conv(t, keep(ext, { base: `${base} (${s})`, w: quarter ? file.h : file.w, h: quarter ? file.w : file.h }))), "rotate"));
+    const lossy = ["jpg", "heic", "avif", "jp2"].includes(ext);
+    // Only limits below the file's size; the result lands just under the limit.
+    tools.push(group("Fit to Size", [1, 5, 8, 25].filter((mb) => (file.size || 0) > mb * 1e6).map((mb) =>
+      conv(`${mb} MB`, keep(lossy ? ext : "jpg", { base: `${base} (under ${mb} MB)`, w: file.w, h: file.h, size: Math.round(mb * 0.94e6) }))), "scale"));
+    if (lossy) tools.push(conv("Compress", keep(ext, { base: `${base} (compressed)`, w: file.w, h: file.h }), { symbol: "compress" }));
+    tools.push(conv("Remove Background", keep("png", { base: `${base} (no background)`, w: file.w, h: file.h }), { symbol: "cutout" }));
     tools.push(conv("Remove Metadata", keep(ext, { base: `${base} (no metadata)`, w: file.w, h: file.h }), { symbol: "eyeSlash" }));
     tools.push(conv("Recognize Text", keep("txt", { base: `${base} (text)` }), { symbol: "text" }));
   } else if (kind === "video") {
@@ -1049,7 +1061,7 @@ function run(file, entry) {
   const out = entry.out(file);
   const name = nextFree(out.base, out.ext);
   const created = { name, id: nextId++, isNew: true, progress: 0, folder: !!out.folder,
-                    w: out.w, h: out.h, seconds: out.seconds, pages: out.pages, size: file.size };
+                    w: out.w, h: out.h, seconds: out.seconds, pages: out.pages, size: out.size ?? file.size };
   const index = files.findIndex((x) => x.id === file.id);
   files.splice(index + 1, 0, created);
   renderFiles();

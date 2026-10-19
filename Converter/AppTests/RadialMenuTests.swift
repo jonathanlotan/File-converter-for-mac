@@ -1,5 +1,6 @@
 import AppKit
 import ConverterCore
+import ImageIO
 import XCTest
 @testable import ConverterApp
 
@@ -84,11 +85,48 @@ final class RadialMenuModelTests: XCTestCase {
         XCTAssertEqual(formats.last, "More")
 
         model.setMode(.tools)
-        XCTAssertEqual(model.slices.map(\.title), ["Resize", "Crop", "Compress", "Remove Metadata", "Recognize Text", "Archive"])
+        XCTAssertEqual(model.slices.map(\.title), ["Resize", "Crop", "Rotate", "Compress", "Remove Background",
+                                                   "Remove Metadata", "Recognize Text", "Archive"])
         XCTAssertTrue(model.slices.first { $0.title == "Resize" }?.isGroup ?? false)
 
         model.setMode(.actions)
         XCTAssertEqual(model.slices.map(\.title), ["Share", "Metadata", "Float", "Copy", "Move…", "Copy Path", "Terminal"])
+    }
+
+    func testRotateRemoveBackgroundAndFitToSizeOnTheToolsRing() throws {
+        // Noise compresses badly, so this photo is over 1 MB and Fit to Size applies.
+        var state: UInt64 = 1
+        let bytes = (0..<(1200 * 900 * 4)).map { _ -> UInt8 in
+            state = state &* 6364136223846793005 &+ 1442695040888963407
+            return UInt8(truncatingIfNeeded: state >> 56)
+        }
+        let image = CGImage(width: 1200, height: 900, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: 1200 * 4,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                            provider: CGDataProvider(data: Data(bytes) as CFData)!, decode: nil,
+                            shouldInterpolate: false, intent: .defaultIntent)!
+        let large = folder.appendingPathComponent("large.jpg")
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(large as CFURL, "public.jpeg" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.95] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        XCTAssertGreaterThan(try XCTUnwrap(large.resourceValues(forKeys: [.fileSizeKey]).fileSize), 1_000_000)
+
+        let model = RadialMenuModel()
+        model.load([large])
+        model.setMode(.tools)
+        let rotate = try XCTUnwrap(model.slices.first { $0.title == "Rotate" })
+        XCTAssertEqual(rotate.symbol, "rotate.right")
+        XCTAssertEqual(rotate.members.count, 5)
+        let fit = try XCTUnwrap(model.slices.first { $0.title == "Fit to Size" })
+        XCTAssertEqual(fit.symbol, "scalemass")
+        XCTAssertEqual(fit.members.count, 1, "only limits below the file's size")
+        let background = try XCTUnwrap(model.slices.first { $0.title == "Remove Background" })
+        XCTAssertEqual(background.symbol, "person.and.background.dotted")
+        for slice in model.slices {
+            if let symbol = slice.symbol {
+                XCTAssertNotNil(NSImage(systemSymbolName: symbol, accessibilityDescription: nil), "\(slice.title): \(symbol)")
+            }
+        }
     }
 
     func testShareIsASubRingOfServices() {

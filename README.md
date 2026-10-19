@@ -72,7 +72,7 @@ cancel. Slices marked › open a second ring when you rest on them.
   </tr>
   <tr>
     <td valign="top">The formats these files can become: images, video, audio, documents and PDFs. Less common ones are under More.</td>
-    <td valign="top">Resize, crop, compress, remove metadata, recognize text, merge or split PDFs, make archives.</td>
+    <td valign="top">Resize, crop, rotate, fit to a size, compress, remove backgrounds or metadata, recognize text, merge or split PDFs, make archives.</td>
     <td valign="top">Share (AirDrop, Mail, Messages, Notes, Photos, or any app), see metadata, float on a shelf, copy, move, copy the path, open in Terminal.</td>
   </tr>
 </table>
@@ -121,7 +121,10 @@ size and the crop is scaled to it. With several photos it steps through them, ke
 - Write: JPEG, PNG, HEIC, AVIF, TIFF, GIF, PDF, BMP, JPEG 2000, ICNS, ICO, PSD, TGA.
 - Also read: WebP, EXR and SVG. JPEG XL and camera RAW should open too, through macOS, but aren't tested.
 - Animated GIFs can become MP4 or MOV.
-- Tools: resize, crop, compress, remove metadata, recognize text, combine into a PDF.
+- Tools: resize, crop, rotate and flip, fit under 1, 5, 8 or 25 MB, compress, remove the
+  background (macOS 14 or later), remove metadata, recognize text, combine into a PDF.
+- Fit to Size lowers the quality first, then the pixel size, and saves nothing rather than a
+  result too small or blurry to use.
 - Photos stay upright, and their metadata is kept unless you turn that off.
 </details>
 

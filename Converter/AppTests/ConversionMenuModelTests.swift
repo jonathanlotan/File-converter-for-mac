@@ -35,7 +35,9 @@ final class ConversionMenuModelTests: XCTestCase {
         XCTAssertEqual(titles(model.tools), [
             "Resize: 50%, 25%, 1920 px, 1280 px, 640 px",
             "Crop: Square, 4:3, 3:2, 16:9, 3:4, 2:3, 9:16",
+            "Rotate: Left, Right, 180°, Flip Horizontal, Flip Vertical",
             "Compress",
+            "Remove Background",
             "Remove Metadata",
             "Recognize Text",
             "Archive: ZIP, TAR.GZ, TAR.XZ, 7Z, Apple Archive",
