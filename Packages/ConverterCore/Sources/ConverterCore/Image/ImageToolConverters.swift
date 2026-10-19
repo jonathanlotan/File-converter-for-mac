@@ -121,6 +121,12 @@ public struct CompressImageConverter: Converter {
             format: format, frames: [info.primaryIndex], maxPixelSize: nil,
             quality: options.compressionQuality, keepMetadata: options.keepMetadata)
         try ImageCodec.encode(source, request, to: destination, progress: progress)
+        // Like the other Compress tools: no "compressed" copy that isn't smaller.
+        let before = (try? input.url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        let after = (try? destination.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        if before > 0 && after >= before * 95 / 100 {
+            throw ConversionError.nothingToDo("\(input.url.lastPathComponent) is already well compressed; the result wasn't smaller.")
+        }
     }
 }
 

@@ -102,8 +102,9 @@ final class ImageMatrixTests: XCTestCase {
                     let problems = checkTool(output, of: fixture, made: tool, spec: tool.output(for: input))
                     problems.forEach { XCTFail("\(label): \($0)") }
                     lines.append("\(problems.isEmpty ? "ok  " : "FAIL") \(label)  (\(output.lastPathComponent))")
-                } catch let ConversionError.nothingToDo(reason) where tool is RemoveBackgroundConverter {
-                    // A test card may have nothing that looks like a subject.
+                } catch let ConversionError.nothingToDo(reason) where tool is RemoveBackgroundConverter || tool is CompressImageConverter {
+                    // A test card may have nothing that looks like a subject, and a
+                    // small JPEG may not come out smaller.
                     lines.append("ok   \(label)  (declined: \(reason))")
                 } catch {
                     XCTFail("\(label): \(error.localizedDescription)")
