@@ -20,6 +20,8 @@ brew install --cask jonathanlotan/tap/swivel
 [![MIT License](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
 [![Tests](https://github.com/jonathanlotan/Swivel/actions/workflows/ci.yml/badge.svg)](https://github.com/jonathanlotan/Swivel/actions/workflows/ci.yml)
 
+English · [简体中文](README.zh-CN.md)
+
 ### [▶ Try the wheel in your browser](https://jonathanlotan.github.io/Swivel/)
 
 <picture>
