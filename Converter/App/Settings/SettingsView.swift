@@ -206,7 +206,7 @@ struct SettingsView: View {
                     ForEach([128, 192, 256, 320], id: \.self) { Text("\($0) kbit/s").tag($0) }
                 }
                 Picker("Compress audio", selection: $settings.options.compressionAudioBitRate) {
-                    ForEach([64, 96, 128, 160], id: \.self) { Text("\($0) kbit/s").tag($0) }
+                    ForEach(ConversionOptions.compressionAudioBitRates, id: \.self) { Text("\($0) kbit/s").tag($0) }
                 }
             } header: {
                 Text("Audio")

@@ -11,7 +11,8 @@ public struct ConversionOptions: Sendable, Hashable, Codable {
     public var keepMetadata: Bool
     /// AAC bit rate for stereo, in kbit/s (mono uses half).
     public var audioBitRate: Int
-    /// AAC bit rate used by the "Compress audio" tool, in kbit/s for stereo.
+    /// AAC bit rate used by the "Compress audio" tool, in kbit/s for stereo:
+    /// one of `compressionAudioBitRates`.
     public var compressionAudioBitRate: Int
     /// Frames per second and longest side, in pixels, of GIFs made from video.
     public var gifFrameRate: Double
@@ -49,6 +50,9 @@ public struct ConversionOptions: Sendable, Hashable, Codable {
     }
 
     public static let `default` = ConversionOptions()
+
+    /// The rates the "Compress audio" setting offers, lowest first.
+    public static let compressionAudioBitRates = [64, 96, 128, 160]
 
     /// Settings saved by an earlier version lack the options added since;
     /// those take their defaults rather than resetting everything.

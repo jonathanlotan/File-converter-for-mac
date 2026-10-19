@@ -136,8 +136,8 @@ public struct AudioConverter: Converter {
 
 /// Re-encodes a sound file as AAC in M4A at the lower bit rate of
 /// `ConversionOptions.compressionAudioBitRate`. Offered for lossless files
-/// and for lossy ones recorded well above that rate. Gives up rather than
-/// saving a file that isn't smaller.
+/// and for lossy ones recorded well above the lowest rate the setting
+/// offers. Gives up rather than saving a file that isn't smaller.
 public struct CompressAudioConverter: Converter {
     public init() {}
 
@@ -148,23 +148,29 @@ public struct CompressAudioConverter: Converter {
 
     static let losslessFormats: Set<AudioFormatID> = [kAudioFormatLinearPCM, kAudioFormatAppleLossless, kAudioFormatFLAC]
 
-    /// Menus don't know the chosen rate, so the standard one decides what is
-    /// offered; `convert` checks the real one.
+    /// Menus don't know the chosen rate, and `JobRunner` asks again before
+    /// converting, so a file is offered when the lowest rate the setting
+    /// offers would shrink it; `convert` checks the chosen one.
     public func accepts(_ input: InputFile) -> Bool {
         guard MediaTypes.isAudio(input), let info = input.audio else { return false }
-        return Self.shrinks(info, bytes: Self.fileSize(input.url), to: ConversionOptions.default.compressionAudioBitRate)
+        let lowest = ConversionOptions.compressionAudioBitRates.min() ?? ConversionOptions.default.compressionAudioBitRate
+        return Self.shrinks(info, fileSize: Self.fileSize(input.url), to: lowest)
     }
 
-    static func shrinks(_ info: AudioInfo, bytes: Int, to kbps: Int) -> Bool {
-        shrinks(format: info.formatID, channels: info.channels, seconds: info.duration, bytes: bytes, to: kbps)
+    /// Estimates from the sound's own bytes, so cover art and tags don't
+    /// make a file look like a higher rate than it is; from `fileSize` when
+    /// the file doesn't say how many those are.
+    static func shrinks(_ info: AudioInfo, fileSize: Int, to kbps: Int) -> Bool {
+        let bytes = info.audioDataBytes.map { Int(clamping: $0) } ?? fileSize
+        return shrinks(format: info.formatID, channels: info.channels, seconds: info.duration, bytes: bytes, to: kbps)
     }
 
     /// Whether AAC at `kbps` (stereo; mono gets half) should make the file
     /// smaller: always for lossless audio, otherwise when its bit rate,
-    /// estimated from size and length, is clearly above the target. A file
-    /// at the target rate reads a little higher because of its container,
-    /// and one whose size or length isn't known is offered and checked
-    /// afterwards.
+    /// estimated from its bytes and length, is clearly above the target. A
+    /// file at the target rate reads a little higher (encoder priming, or
+    /// the container when only the file size is known), and one whose size
+    /// or length isn't known is offered and checked afterwards.
     static func shrinks(format: AudioFormatID, channels: Int, seconds: Double, bytes: Int, to kbps: Int) -> Bool {
         if losslessFormats.contains(format) { return true }
         guard seconds > 0, bytes > 0 else { return true }
@@ -181,7 +187,7 @@ public struct CompressAudioConverter: Converter {
         guard let info = input.audio else { throw ConversionError.unreadableInput(input.url) }
         let rate = options.compressionAudioBitRate
         let before = Self.fileSize(input.url)
-        guard Self.shrinks(info, bytes: before, to: rate) else {
+        guard Self.shrinks(info, fileSize: before, to: rate) else {
             throw ConversionError.nothingToDo("\(input.url.lastPathComponent) is already at \(rate) kbit/s or less.")
         }
         try await AudioExport.run(from: input.url, to: destination, format: .m4a, sourceBits: info.bitsPerSample,

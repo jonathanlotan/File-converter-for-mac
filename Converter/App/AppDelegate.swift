@@ -27,6 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Set up before launch finishes: files opened with the app ("Open With",
     // dropped on its icon) arrive between willFinish and didFinish.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        // Copies Shortcuts handed over without a file of their own, and
+        // their results, from the last time the app ran.
+        IntentConversion.removeTemporaryFiles()
         ImageRasterizers.register(SVGRasterizer())
         // New jobs always use the current settings.
         optionsSubscription = settings.$options.sink { [weak self] options in self?.queue.options = options }

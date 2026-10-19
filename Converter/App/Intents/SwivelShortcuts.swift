@@ -37,11 +37,11 @@ struct ConvertToJPEGIntent: AppIntent {
     }
 }
 
-/// Smaller copies of images, videos and PDFs, with the tool that fits each file.
+/// Smaller copies of images, videos, audio and PDFs, with the tool that fits each file.
 struct CompressIntent: AppIntent {
     static let title: LocalizedStringResource = "Compress"
     static let description = IntentDescription(
-        "Saves a smaller copy of each image, video or PDF next to the original, at the quality set in Swivel.",
+        "Saves a smaller copy of each image, video, audio file or PDF next to the original, at the quality set in Swivel.",
         categoryName: "Files")
 
     @Parameter(title: "Files", supportedTypeIdentifiers: ["public.item"], requestValueDialog: "Which files?")
@@ -59,7 +59,7 @@ struct CompressIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
         .result(value: try await IntentConversion.run(
-            files, firstOf: ["image.compress", "video.compress", "pdf.compress"], label: "Compress"))
+            files, firstOf: ["image.compress", "video.compress", "audio.compress", "pdf.compress"], label: "Compress"))
     }
 }
 
