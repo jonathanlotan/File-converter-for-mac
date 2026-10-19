@@ -141,8 +141,10 @@ public struct CompressPDFConverter: Converter {
 // MARK: - Remove metadata
 
 /// Rewrites a PDF without its document information: title, author, subject,
-/// keywords, the application that made it and its dates. The pages aren't
-/// changed. (PDFKit records itself as the producer of the copy.)
+/// keywords, the application that made it and its dates; and without who
+/// wrote each annotation and when it last changed. The pages and the
+/// annotations themselves aren't changed. (PDFKit records itself as the
+/// producer of the copy.)
 public struct RemovePDFMetadataConverter: Converter {
     public init() {}
 
@@ -162,6 +164,14 @@ public struct RemovePDFMetadataConverter: Converter {
     public func convert(_ input: InputFile, to destination: URL, options: ConversionOptions, progress: ProgressHandler) async throws {
         let document = try PDFFiles.open(input)
         document.documentAttributes = [:]
+        for index in 0..<document.pageCount {
+            try Task.checkCancellation()
+            // A note or highlight records its author ("T") and date ("M").
+            for annotation in document.page(at: index)?.annotations ?? [] {
+                annotation.removeValue(forAnnotationKey: .textLabel)
+                annotation.removeValue(forAnnotationKey: .date)
+            }
+        }
         guard document.write(to: destination) else { throw ConversionError.encoderFailed("couldn't write the PDF") }
     }
 }

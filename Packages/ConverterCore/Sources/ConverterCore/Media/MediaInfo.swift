@@ -15,6 +15,9 @@ public struct AudioInfo: Sendable, Hashable {
     /// Exact length in frames when the file records it (PCM, or a packet
     /// table as in FLAC and M4A); nil when it's only an estimate (MP3, ADTS).
     public let exactFrames: Int64?
+    /// Bytes of sound alone, without the container, tags or cover art; nil
+    /// when the file doesn't say.
+    public let audioDataBytes: Int64?
 
     init?(url: URL) {
         var file: AudioFileID?
@@ -39,6 +42,14 @@ public struct AudioInfo: Sendable, Hashable {
             exactFrames = Int64(packets)
         } else {
             exactFrames = nil
+        }
+
+        var dataBytes: UInt64 = 0
+        size = UInt32(MemoryLayout<UInt64>.size)
+        if AudioFileGetProperty(file, kAudioFilePropertyAudioDataByteCount, &size, &dataBytes) == noErr, dataBytes > 0 {
+            audioDataBytes = Int64(clamping: dataBytes)
+        } else {
+            audioDataBytes = nil
         }
 
         formatID = format.mFormatID

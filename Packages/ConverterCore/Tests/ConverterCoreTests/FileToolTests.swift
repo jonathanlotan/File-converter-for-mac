@@ -6,7 +6,8 @@ import XCTest
 
 /// The file tools on input they should really change: a noisy high-bit-rate
 /// clip to compress, a 720p clip to shrink, a tagged clip to clean, PDFs to
-/// merge, a tagged PDF to clean, lossless sound to compress, images to
+/// merge, a tagged and annotated PDF to clean, lossless and high-rate sound
+/// to compress (and sound with cover art that shouldn't be), images to
 /// combine, an image-heavy PDF to compress, and text to recognise.
 final class FileToolTests: XCTestCase {
     var folder: URL!
@@ -146,14 +147,20 @@ final class FileToolTests: XCTestCase {
     }
 
     func testRemovingPDFMetadataKeepsThePages() async throws {
-        let pdf = folder.appendingPathComponent("report.pdf")
-        try MediaSamples.writePDF(to: pdf, pages: 3, info: [
+        let plain = folder.appendingPathComponent("plain.pdf"), pdf = folder.appendingPathComponent("report.pdf")
+        try MediaSamples.writePDF(to: plain, pages: 3, info: [
             kCGPDFContextTitle: "Quarterly Report", kCGPDFContextAuthor: "Sam", kCGPDFContextSubject: "Numbers",
             kCGPDFContextKeywords: ["finance", "q3"], kCGPDFContextCreator: "Spreadsheets 2.0",
         ])
+        let reviewed = Date(timeIntervalSince1970: 1_700_000_000)
+        try MediaSamples.annotatePDF(plain, to: pdf, author: "Rae Reviewer", date: reviewed)
+        try FileManager.default.removeItem(at: plain)
         let before = await sections(pdf)["PDF"]
         XCTAssertEqual(before?["Title"], "Quarterly Report", "the fixture is tagged")
         XCTAssertEqual(before?["Keywords"], "finance, q3")
+        let notes = try annotations(pdf).filter { $0.type != "Popup" }
+        XCTAssertEqual(notes.count, 6, "a note and a highlight on each page")
+        XCTAssertTrue(notes.allSatisfy { $0.userName == "Rae Reviewer" && $0.modificationDate == reviewed }, "signed and dated")
 
         let output = try await JobRunner.run(converter("pdf.stripMetadata"), on: InputFile(url: pdf))
         XCTAssertEqual(output.lastPathComponent, "report (no metadata).pdf")
@@ -164,6 +171,21 @@ final class FileToolTests: XCTestCase {
             XCTAssertNil(after[label], "\(label) should be gone: \(after.fields)")
         }
         XCTAssertEqual(try XCTUnwrap(PDFDocument(url: output)).page(at: 2)?.string?.contains("Page 3"), true, "text intact")
+
+        let cleaned = try annotations(output)
+        XCTAssertEqual(cleaned.filter { $0.type != "Popup" }.map(\.type), notes.map(\.type), "the markup stays")
+        XCTAssertEqual(cleaned.filter { $0.type == "Text" }.compactMap(\.contents),
+                       ["Check page 1", "Check page 2", "Check page 3"], "with its text")
+        for annotation in cleaned {
+            XCTAssertNil(annotation.userName, "\(annotation.type ?? "?") still names its author")
+            XCTAssertNotEqual(annotation.modificationDate, reviewed, "\(annotation.type ?? "?") still has its date")
+        }
+        XCTAssertNil(try Data(contentsOf: output).range(of: Data("Rae Reviewer".utf8)), "no copy of the name anywhere")
+    }
+
+    private func annotations(_ url: URL) throws -> [PDFAnnotation] {
+        let document = try XCTUnwrap(PDFDocument(url: url))
+        return (0..<document.pageCount).flatMap { document.page(at: $0)?.annotations ?? [] }
     }
 
     func testCompressingAnImageHeavyPDF() async throws {
@@ -203,29 +225,71 @@ final class FileToolTests: XCTestCase {
         }
     }
 
-    func testCompressIsOnlyOfferedAboveTheTargetRate() async throws {
+    func testCompressIsOfferedWhenTheLowestSettingWouldShrinkIt() async throws {
         let wav = folder.appendingPathComponent("tone.wav")
         try MediaSamples.writeTone(to: wav, seconds: 4, bits: 16)
-        // Constant bit rate (-s 0), so the files really are 256 and 96 kbit/s.
-        let high = folder.appendingPathComponent("high.m4a"), low = folder.appendingPathComponent("low.m4a")
-        try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", "-s", "0", "-b", "256000", wav.path, high.path])
-        try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", "-s", "0", "-b", "96000", wav.path, low.path])
+        // Constant bit rate (-s 0), so the files really are 256, 96 and 64 kbit/s.
+        let high = folder.appendingPathComponent("high.m4a"), mid = folder.appendingPathComponent("mid.m4a")
+        let low = folder.appendingPathComponent("low.m4a")
+        for (url, rate) in [(high, "256000"), (mid, "96000"), (low, "64000")] {
+            try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", "-s", "0", "-b", rate, wav.path, url.path])
+        }
+        XCTAssertEqual(ConversionOptions.compressionAudioBitRates.min(), 64)
         let ids = { (url: URL) throws in ConverterRegistry.standard.converters(for: [try InputFile(url: url)]).map(\.id) }
         XCTAssertTrue(try ids(high).contains("audio.compress"), "256 kbit/s AAC can shrink to 128")
-        XCTAssertFalse(try ids(low).contains("audio.compress"), "96 kbit/s AAC is already below 128")
+        XCTAssertTrue(try ids(mid).contains("audio.compress"), "96 kbit/s AAC can shrink to 64")
+        XCTAssertFalse(try ids(low).contains("audio.compress"), "64 kbit/s AAC is already at the lowest setting")
 
         let output = try await JobRunner.run(converter("audio.compress"), on: InputFile(url: high))
         XCTAssertLessThan(try size(output), try size(high) * 2 / 3)
+        let smaller = try await JobRunner.run(converter("audio.compress"), on: InputFile(url: mid),
+                                              options: ConversionOptions(compressionAudioBitRate: 64))
+        XCTAssertLessThan(try size(smaller), try size(mid) * 3 / 4)
+
+        // The menu went by the lowest setting; the chosen one may not shrink the file.
+        for (url, rate) in [(high, 256), (mid, 128)] {
+            do {
+                try await JobRunner.run(converter("audio.compress"), on: InputFile(url: url),
+                                        options: ConversionOptions(compressionAudioBitRate: rate))
+                XCTFail("\(url.lastPathComponent) can't shrink to \(rate) kbit/s")
+            } catch {
+                XCTAssertEqual(error.localizedDescription, "\(url.lastPathComponent) is already at \(rate) kbit/s or less.")
+            }
+        }
+        XCTAssertEqual(try folderContents(folder),
+                       ["high (compressed).m4a", "high.m4a", "low.m4a", "mid (compressed).m4a", "mid.m4a", "tone.wav"])
+    }
+
+    func testCoverArtDoesNotCountTowardsTheBitRate() async throws {
+        let wav = folder.appendingPathComponent("tone.wav"), plain = folder.appendingPathComponent("plain.m4a")
+        try MediaSamples.writeTone(to: wav, seconds: 4, bits: 16)
+        try await Subprocess.run("/usr/bin/afconvert", ["-f", "m4af", "-d", "aac", "-s", "0", "-b", "128000", wav.path, plain.path])
+        let cover = NSMutableData()
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithData(cover as CFMutableData, "public.jpeg" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, MediaSamples.noise(side: 300), nil)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        let tagged = folder.appendingPathComponent("tagged.m4a")
+        try await MediaSamples.tagAudio(plain, to: tagged, art: cover as Data)
+        try FileManager.default.removeItem(at: plain)
+        try FileManager.default.removeItem(at: wav)
+
+        let input = try InputFile(url: tagged)
+        let info = try XCTUnwrap(input.audio)
+        let fileSize = try size(tagged)
+        let soundBytes = try XCTUnwrap(info.audioDataBytes)
+        XCTAssertLessThan(soundBytes, Int64(fileSize / 2), "the cover is most of the file")
+        XCTAssertEqual(Double(soundBytes) * 8 / info.duration / 1000, 128, accuracy: 6, "the sound alone is 128 kbit/s")
+        XCTAssertTrue(CompressAudioConverter.shrinks(format: info.formatID, channels: 2, seconds: info.duration,
+                                                     bytes: fileSize, to: 128), "by its file size it looks far above 128")
 
         do {
-            // The menu went by the standard 128; the setting may say otherwise.
-            try await JobRunner.run(converter("audio.compress"), on: InputFile(url: high),
-                                    options: ConversionOptions(compressionAudioBitRate: 256))
-            XCTFail("a 256 kbit/s file can't shrink to 256 kbit/s")
+            try await JobRunner.run(converter("audio.compress"), on: input, options: ConversionOptions(compressionAudioBitRate: 128))
+            XCTFail("a 128 kbit/s file with cover art can't shrink to 128 kbit/s")
         } catch {
-            XCTAssertEqual(error.localizedDescription, "high.m4a is already at 256 kbit/s or less.")
+            XCTAssertEqual(error.localizedDescription, "tagged.m4a is already at 128 kbit/s or less.")
         }
-        XCTAssertEqual(try folderContents(folder), ["high (compressed).m4a", "high.m4a", "low.m4a", "tone.wav"])
+        XCTAssertTrue(try converter("audio.compress").accepts(input), "64 kbit/s would still shrink it")
+        XCTAssertEqual(try folderContents(folder), ["tagged.m4a"])
     }
 
     func testShrinkEstimateUsesSizeAndLength() {

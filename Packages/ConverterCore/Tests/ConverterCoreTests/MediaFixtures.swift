@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreText
 import Foundation
+import PDFKit
 @testable import ConverterCore
 
 /// What a generated sample should contain.
@@ -133,6 +134,38 @@ enum MediaSamples {
         try file.write(from: buffer)
     }
 
+    /// Copies a sound file with a title and `art` as its cover, without
+    /// re-encoding, the way a music store or tagger leaves an M4A.
+    static func tagAudio(_ source: URL, to url: URL, art: Data) async throws {
+        func item(_ identifier: AVMetadataIdentifier, _ value: NSCopying & NSObjectProtocol, type: CFString? = nil) -> AVMetadataItem {
+            let item = AVMutableMetadataItem()
+            item.identifier = identifier
+            item.value = value
+            if let type { item.dataType = type as String }
+            return item
+        }
+        let session = AVAssetExportSession(asset: AVURLAsset(url: source), presetName: AVAssetExportPresetPassthrough)!
+        session.outputURL = url
+        session.outputFileType = .m4a
+        session.metadata = [item(.commonIdentifierTitle, "Tone" as NSString),
+                            item(.commonIdentifierArtwork, art as NSData, type: kCMMetadataBaseDataType_JPEG)]
+        try await ExportSessionRunner(session).run { _ in }
+    }
+
+    /// A square of random pixels: barely compressible, so as big as an image gets.
+    static func noise(side: Int) -> CGImage {
+        let context = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+        let pixels = context.data!.assumingMemoryBound(to: UInt8.self)
+        var seed: UInt64 = 42
+        for i in 0..<(context.bytesPerRow * side) {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            pixels[i] = UInt8(truncatingIfNeeded: seed >> 56)
+        }
+        return context.makeImage()!
+    }
+
     /// `noisy` fills frames with random pixels at a high bit rate: footage
     /// that a re-encode can really shrink. `metadata` is written as the
     /// movie's QuickTime tags, and `transform` as the track's orientation.
@@ -259,18 +292,28 @@ enum MediaSamples {
         return context.makeImage()!
     }
 
+    /// Copies a PDF with a reviewer's markup on every page: a note and a
+    /// highlight, each signed by `author` and dated `date`.
+    static func annotatePDF(_ source: URL, to url: URL, author: String, date: Date) throws {
+        guard let document = PDFDocument(url: source) else { throw ConversionError.unreadableInput(source) }
+        for index in 0..<document.pageCount {
+            guard let page = document.page(at: index) else { continue }
+            let note = PDFAnnotation(bounds: CGRect(x: 520, y: 700, width: 20, height: 20), forType: .text, withProperties: nil)
+            note.contents = "Check page \(index + 1)"
+            let highlight = PDFAnnotation(bounds: CGRect(x: 72, y: 695, width: 300, height: 30), forType: .highlight,
+                                          withProperties: nil)
+            for annotation in [note, highlight] {
+                annotation.userName = author
+                annotation.modificationDate = date
+                page.addAnnotation(annotation)
+            }
+        }
+        guard document.write(to: url) else { throw ConversionError.encoderFailed("annotated pdf fixture") }
+    }
+
     /// A one-page PDF holding a large, noisy (barely compressible) image.
     static func writeImagePDF(to url: URL, side: Int = 1500) throws {
-        let space = CGColorSpace(name: CGColorSpace.sRGB)!
-        let context = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0,
-                                space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
-        let pixels = context.data!.assumingMemoryBound(to: UInt8.self)
-        var seed: UInt64 = 42
-        for i in 0..<(context.bytesPerRow * side) {
-            seed = seed &* 6364136223846793005 &+ 1442695040888963407
-            pixels[i] = UInt8(truncatingIfNeeded: seed >> 56)
-        }
-        let image = context.makeImage()!
+        let image = noise(side: side)
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
         let pdf = CGContext(url as CFURL, mediaBox: &box, nil)!
         pdf.beginPDFPage(nil)

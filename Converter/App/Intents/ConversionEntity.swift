@@ -82,7 +82,8 @@ struct ConversionEntity: AppEntity {
 /// App Intents can only narrow a picker by the files already chosen
 /// through `@IntentParameterDependency`, which needs macOS 14; the app
 /// runs on 13, so the Convert File action checks the files when it runs
-/// instead, and says which one a conversion can't be made from.
+/// instead: it skips the ones a conversion can't be made from, and says
+/// why when that leaves nothing to convert.
 struct ConversionQuery: EntityQuery, EntityStringQuery {
     /// The picker's first page, in the wheel's order.
     static let suggestedIDs = [

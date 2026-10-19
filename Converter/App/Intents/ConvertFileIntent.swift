@@ -8,7 +8,7 @@ import ConverterCore
 struct ConvertFileIntent: AppIntent {
     static let title: LocalizedStringResource = "Convert File"
     static let description = IntentDescription(
-        "Converts files with Swivel. Each result is saved next to its original; nothing is overwritten.",
+        "Converts files with Swivel. Each result is saved next to its original; nothing is overwritten. Files the conversion doesn't apply to, and its own results, are skipped.",
         categoryName: "Files")
 
     @Parameter(title: "Files", description: "The files to convert.", supportedTypeIdentifiers: ["public.item"],
@@ -33,18 +33,24 @@ struct ConvertFileIntent: AppIntent {
         guard let converter = await IntentSupport.converter(id: conversion.id) else {
             throw ConversionIntentError("\(conversion.name) isn't available on this Mac.")
         }
-        let inputs = try IntentConversion.inputs(for: files)
-        // The wheel's rule: the conversion has to apply to every file.
-        if let odd = inputs.first(where: { !converter.accepts($0) }) {
-            let name = odd.url.lastPathComponent
-            throw ConversionIntentError(converter.role == .format
-                ? "\(converter.title) can't be made from \(name)."
-                : "\(converter.title) doesn't apply to \(name).")
+        // Unlike the wheel, which offers only what applies to every file, a
+        // shortcut (a folder automation, say) gets whatever arrived: it
+        // converts what it can and skips the rest.
+        var convertible: [InputFile] = []
+        var skipped: [String] = []
+        for input in try IntentConversion.inputs(for: files) {
+            if let reason = IntentConversion.reasonToSkip(input, with: converter) {
+                skipped.append(reason)
+            } else {
+                convertible.append(input)
+            }
         }
-        guard inputs.count >= converter.minimumInputs else {
-            throw ConversionIntentError("\(converter.title) needs at least \(converter.minimumInputs) files.")
+        guard !convertible.isEmpty else { throw ConversionIntentError(IntentConversion.summary(skipped)) }
+        guard convertible.count >= converter.minimumInputs else {
+            throw ConversionIntentError(IntentConversion.summary(
+                ["\(converter.title) needs at least \(converter.minimumInputs) files."] + skipped))
         }
-        let outputs = try await IntentConversion.run([.init(converter: converter, inputs: inputs)])
+        let outputs = try await IntentConversion.run([.init(converter: converter, inputs: convertible)], skipped: skipped)
         return .result(value: outputs)
     }
 }
@@ -91,6 +97,12 @@ enum IntentSupport {
 /// `JobRunner`, with the current settings, so results land beside the
 /// originals and nothing is overwritten. `JobRunner` isn't tied to the
 /// main actor, so the work runs off the main thread.
+///
+/// A shortcut is handed whatever files arrived, so files a conversion
+/// doesn't apply to are skipped rather than failing the action, and so are
+/// the conversion's own results: a folder automation would otherwise
+/// convert each result again as it lands beside the original. The action
+/// fails only when nothing at all was converted, saying why.
 enum IntentConversion {
     /// A converter and the files it runs on (together, when it combines them).
     struct Job: Sendable {
@@ -98,21 +110,28 @@ enum IntentConversion {
         let inputs: [InputFile]
     }
 
-    /// Runs every job and returns the results. Any failure fails the whole
-    /// action with each converter's message, once the other jobs are done.
-    static func run(_ jobs: [Job]) async throws -> [IntentFile] {
+    /// Runs every job and returns the results. A file a converter declines
+    /// ("already well compressed") is skipped like one it doesn't apply
+    /// to; `skipped` are the reasons for files already left out. Fails
+    /// with every reason when nothing was converted, and with each
+    /// converter's message when a conversion went wrong, once the other
+    /// jobs are done.
+    static func run(_ jobs: [Job], skipped: [String] = []) async throws -> [IntentFile] {
         let options = await IntentSupport.options
         var outputs: [IntentFile] = []
+        var declined = skipped
         var failures: [String] = []
         for job in jobs {
             for outcome in await JobRunner.run(job.converter, on: job.inputs, options: options) {
                 switch outcome {
                 case .success(let url): outputs.append(result(at: url))
+                case .failure(ConversionError.nothingToDo(let reason)): declined.append(reason)
                 case .failure(let error): failures.append(error.localizedDescription)
                 }
             }
         }
         guard failures.isEmpty else { throw ConversionIntentError(failures.joined(separator: "\n")) }
+        guard !outputs.isEmpty else { throw ConversionIntentError(summary(declined)) }
         return outputs
     }
 
@@ -123,26 +142,92 @@ enum IntentConversion {
     static func run(_ files: [IntentFile], firstOf ids: [String], label: String) async throws -> [IntentFile] {
         let available = await IntentSupport.converters()
         let candidates = ids.compactMap { id in available.first { $0.id == id } }
-        let jobs = try inputs(for: files).map { input in
+        var jobs: [Job] = []
+        var skipped: [String] = []
+        for input in try inputs(for: files) {
+            let name = input.url.lastPathComponent
             guard let converter = candidates.first(where: { $0.accepts(input) }) else {
-                throw ConversionIntentError("\(label) doesn't apply to \(input.url.lastPathComponent).")
+                skipped.append("\(label) doesn't apply to \(name).")
+                continue
             }
-            return Job(converter: converter, inputs: [input])
+            guard !isResult(input, of: converter) else {
+                skipped.append(resultMessage(name, label: label))
+                continue
+            }
+            jobs.append(Job(converter: converter, inputs: [input]))
         }
-        return try await run(jobs)
+        return try await run(jobs, skipped: skipped)
+    }
+
+    /// Why `converter` should leave `input` alone, or nil to convert it.
+    static func reasonToSkip(_ input: InputFile, with converter: any Converter) -> String? {
+        let name = input.url.lastPathComponent
+        guard converter.accepts(input) else {
+            return converter.role == .format
+                ? "\(converter.title) can't be made from \(name)."
+                : "\(converter.title) doesn't apply to \(name)."
+        }
+        return isResult(input, of: converter) ? resultMessage(name, label: converter.title) : nil
+    }
+
+    /// Whether the file is named the way `converter` names its results:
+    /// "photo (compressed).jpg" for Compress, or "photo (compressed) 2.jpg"
+    /// when that name was taken. Conversions that only change the format
+    /// add nothing to the name, and are left to `accepts` (a PNG isn't
+    /// offered PNG).
+    static func isResult(_ input: InputFile, of converter: any Converter) -> Bool {
+        let suffix = converter.output(for: input).nameSuffix
+        guard !suffix.isEmpty else { return false }
+        var base = input.baseName
+        if let number = base.range(of: #" [0-9]+$"#, options: .regularExpression) {
+            base.removeSubrange(number)
+        }
+        return base.hasSuffix(suffix)
+    }
+
+    private static func resultMessage(_ name: String, label: String) -> String {
+        "\(name) is already the result of \(label)."
+    }
+
+    /// Reasons, one per line, cut short when a folder's worth were skipped.
+    static func summary(_ reasons: [String]) -> String {
+        let limit = 6
+        guard reasons.count > limit else { return reasons.joined(separator: "\n") }
+        let shown = reasons.prefix(limit - 1)
+        return (shown + ["…and \(reasons.count - shown.count) more."]).joined(separator: "\n")
+    }
+
+    /// Where files that aren't saved anywhere yet are written: a folder per
+    /// run inside this one, which the app empties when it starts.
+    static var temporaryFolder: URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("Swivel Shortcuts", isDirectory: true)
+    }
+
+    /// Empties `temporaryFolder` when the app starts; Shortcuts has long
+    /// since passed on what was left there. Best effort.
+    static func removeTemporaryFiles() {
+        try? FileManager.default.removeItem(at: temporaryFolder)
     }
 
     /// The files as inputs. A file that isn't saved anywhere yet (made by
-    /// an earlier action) is written to a temporary folder first; its
-    /// result lands there too, for Shortcuts to pass on.
+    /// an earlier action) is written to this run's folder in
+    /// `temporaryFolder` first; its result lands there too, for Shortcuts
+    /// to pass on.
     static func inputs(for files: [IntentFile]) throws -> [InputFile] {
         guard !files.isEmpty else { throw ConversionIntentError("No files to convert.") }
+        let fm = FileManager.default
+        var runFolder: URL?
         return try files.map { file in
             if let url = file.fileURL { return try InputFile(url: url) }
-            let folder = FileManager.default.temporaryDirectory
-                .appendingPathComponent("Swivel-\(UUID().uuidString)", isDirectory: true)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let url = folder.appendingPathComponent(file.filename.isEmpty ? "file" : file.filename)
+            let folder = runFolder ?? temporaryFolder.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            runFolder = folder
+            let name = file.filename.isEmpty ? "file" : file.filename
+            var url = folder.appendingPathComponent(name)
+            if fm.fileExists(atPath: url.path) {
+                // Two files of one name in this run: each keeps its name.
+                url = folder.appendingPathComponent(UUID().uuidString, isDirectory: true).appendingPathComponent(name)
+            }
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try file.data.write(to: url)
             return try InputFile(url: url)
         }
