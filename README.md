@@ -18,6 +18,7 @@ brew install --cask jonathanlotan/tap/swivel
 [![Apple silicon](https://img.shields.io/badge/Apple%20silicon-arm64-1d1d1f)](#faq)
 [![Fully offline](https://img.shields.io/badge/network-none-2ea44f)](#private-by-design)
 [![MIT License](https://img.shields.io/badge/license-MIT-2ea44f)](LICENSE)
+[![Tests](https://github.com/jonathanlotan/Swivel/actions/workflows/ci.yml/badge.svg)](https://github.com/jonathanlotan/Swivel/actions/workflows/ci.yml)
 
 ### [▶ Try the wheel in your browser](https://jonathanlotan.github.io/Swivel/)
 

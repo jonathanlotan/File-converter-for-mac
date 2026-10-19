@@ -2,8 +2,8 @@ import Foundation
 
 /// Every image converter, in menu order: formats first, then tools.
 public enum ImageConverters {
-    // Typed in pieces: as one `+` chain of mixed literals, Swift 6.2's type
-    // checker (Xcode 26) gives up on it.
+    // Typed in pieces: as one `+` chain of mixed literals, Xcode 26's type
+    // checker (Swift 6.3) gives up on it.
     public static let all: [any Converter] = {
         let formats: [any Converter] = ImageFormat.all.map { ImageFormatConverter(format: $0) }
         let animations: [any Converter] = [AnimatedImageToVideoConverter(.mp4), AnimatedImageToVideoConverter(.mov)]
