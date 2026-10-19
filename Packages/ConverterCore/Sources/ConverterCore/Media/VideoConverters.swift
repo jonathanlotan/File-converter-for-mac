@@ -205,13 +205,16 @@ public struct VideoFrameConverter: Converter {
 
 /// Every video and audio converter, in menu order.
 public enum MediaConverters {
-    public static let all: [any Converter] =
-        VideoFormat.all.map { VideoConverter($0) as any Converter }
-        + [VideoToGIFConverter() as any Converter]
-        + [AudioFormat.m4a, .wav, .aiff, .flac].map { AudioConverter($0, from: .video) as any Converter }
-        + [VideoFrameConverter() as any Converter, CompressVideoConverter() as any Converter]
-        + ResizeVideoConverter.presets.map { $0 as any Converter }
-        + [RemoveAudioConverter() as any Converter, RemoveVideoMetadataConverter() as any Converter]
-        + AudioFormat.all.map { AudioConverter($0, from: .audio) as any Converter }
-        + [CompressAudioConverter() as any Converter]
+    // Typed in pieces, like ImageConverters.all, so older compilers check it quickly.
+    public static let all: [any Converter] = {
+        let videoFormats: [any Converter] = VideoFormat.all.map { VideoConverter($0) }
+        let gif: [any Converter] = [VideoToGIFConverter()]
+        let soundtrack: [any Converter] = [AudioFormat.m4a, .wav, .aiff, .flac].map { AudioConverter($0, from: .video) }
+        let videoTools: [any Converter] = [VideoFrameConverter(), CompressVideoConverter()]
+        let resizes: [any Converter] = ResizeVideoConverter.presets
+        let cleanup: [any Converter] = [RemoveAudioConverter(), RemoveVideoMetadataConverter()]
+        let audioFormats: [any Converter] = AudioFormat.all.map { AudioConverter($0, from: .audio) }
+        let audioTools: [any Converter] = [CompressAudioConverter()]
+        return videoFormats + gif + soundtrack + videoTools + resizes + cleanup + audioFormats + audioTools
+    }()
 }
