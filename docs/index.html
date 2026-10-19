@@ -702,10 +702,13 @@ function menusFor(file) {
     const sizes = [["4K", 2160], ["1080p", 1080], ["720p", 720], ["540p", 540]].filter(([, p]) => p < Math.min(file.w, file.h));
     tools.push(group("Resize", sizes.map(([t, p]) => conv(t, keep("mp4", { base: `${base} (${t})`, w: Math.round(file.w * p / file.h), h: p, seconds: file.seconds }))), "resize"));
     tools.push(conv("Remove Audio", keep(ext, { base: `${base} (no audio)`, w: file.w, h: file.h, seconds: file.seconds }), { symbol: "speakerSlash" }));
+    tools.push(conv("Remove Metadata", keep(ext, { base: `${base} (no metadata)`, w: file.w, h: file.h, seconds: file.seconds }), { symbol: "eyeSlash" }));
   } else if (kind === "audio") {
     const audio = [["M4A", "m4a"], ["M4A Lossless", "m4a"], ["WAV", "wav"], ["AIFF", "aiff"], ["FLAC", "flac"]];
     for (const [t, e] of audio) if (!same(e)) formats.push(conv(t, keep(e, { seconds: file.seconds })));
     formats.push(group("More", [["AAC", "aac"], ["CAF", "caf"]].filter(([, e]) => !same(e)).map(([t, e]) => conv(t, keep(e, { seconds: file.seconds }))), "more"));
+    // Offered for lossless audio, like the sample.
+    if (["aiff", "wav", "flac", "caf"].includes(ext)) tools.push(conv("Compress", keep("m4a", { base: `${base} (compressed)`, seconds: file.seconds }), { symbol: "compress" }));
   } else if (kind === "pdf") {
     formats.push(conv("Plain Text", keep("txt")));
     formats.push(conv("PNG", keep("png")));
@@ -713,6 +716,7 @@ function menusFor(file) {
     formats.push(group("More", [conv("HEIC", keep("heic")), conv("TIFF", keep("tiff"))], "more"));
     if ((file.pages || 1) > 1) tools.push(conv("Split Pages", () => ({ base: `${base} (split)`, ext: "", folder: true }), { symbol: "doc" }));
     tools.push(conv("Compress", keep("pdf", { base: `${base} (compressed)`, pages: file.pages }), { symbol: "compress" }));
+    tools.push(conv("Remove Metadata", keep("pdf", { base: `${base} (no metadata)`, pages: file.pages }), { symbol: "eyeSlash" }));
     tools.push(conv("Recognize Text", keep("txt", { base: `${base} (text)` }), { symbol: "text" }));
   } else if (kind === "doc") {
     const docs = [["Plain Text", "txt"], ["RTF", "rtf"], ["HTML", "html"], ["Word", "docx"], ["PDF", "pdf"]];
