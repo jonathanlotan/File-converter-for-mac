@@ -76,7 +76,9 @@ final class IntentTests: XCTestCase {
     }
 
     func testTheAppShortcutsPickTheToolForEachFile() async throws {
-        let jpeg = try makeImage("photo.jpg", in: folder, width: 1200, height: 800, type: "public.jpeg")
+        // Noise saved at full quality, so Compress has something to take out
+        // (it declines when the result isn't at least 5% smaller).
+        let jpeg = try makeNoisyJPEG("photo.jpg", in: folder)
         let png = try makeImage("shot.png", in: folder)
 
         let compressed = try outputs(of: try await CompressIntent(files: [IntentFile(fileURL: jpeg.url)]).perform())
@@ -96,6 +98,27 @@ final class IntentTests: XCTestCase {
         } catch {
             XCTAssertEqual(error.localizedDescription, "Compress doesn't apply to notes.txt.")
         }
+    }
+
+    private func makeNoisyJPEG(_ name: String, in folder: URL) throws -> InputFile {
+        let (width, height) = (600, 400)
+        var pixels = [UInt8](repeating: 255, count: width * height * 4)
+        var seed: UInt32 = 2041
+        for i in stride(from: 0, to: pixels.count, by: 4) {
+            for c in 0..<3 {
+                seed = seed &* 1_664_525 &+ 1_013_904_223
+                pixels[i + c] = UInt8(truncatingIfNeeded: seed >> 24)
+            }
+        }
+        let context = try XCTUnwrap(CGContext(data: &pixels, width: width, height: height, bitsPerComponent: 8,
+                                              bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                              bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        let url = folder.appendingPathComponent(name)
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithURL(url as CFURL, "public.jpeg" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try XCTUnwrap(context.makeImage()),
+                                   [kCGImageDestinationLossyCompressionQuality: 1.0] as CFDictionary)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return try InputFile(url: url)
     }
 
     func testThreeAppShortcutsAreDeclared() {
