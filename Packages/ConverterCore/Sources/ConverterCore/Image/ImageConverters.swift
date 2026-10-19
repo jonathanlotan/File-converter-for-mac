@@ -9,7 +9,11 @@ public enum ImageConverters {
         let animations: [any Converter] = [AnimatedImageToVideoConverter(.mp4), AnimatedImageToVideoConverter(.mov)]
         let resizes: [any Converter] = ResizeImageConverter.presets
         let crops: [any Converter] = CropImageConverter.presets
-        let tools: [any Converter] = [CompressImageConverter(), StripImageMetadataConverter(), CombineImagesToPDFConverter()]
-        return formats + animations + resizes + crops + tools
+        let turns: [any Converter] = RotateImageConverter.presets
+        let fits: [any Converter] = FitImageConverter.presets
+        let tools: [any Converter] = [CompressImageConverter(), RemoveBackgroundConverter(), StripImageMetadataConverter(),
+                                      CombineImagesToPDFConverter()]
+        let edits: [any Converter] = resizes + crops + turns + fits
+        return formats + animations + edits + tools
     }()
 }

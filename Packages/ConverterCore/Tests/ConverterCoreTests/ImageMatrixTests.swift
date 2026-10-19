@@ -74,6 +74,84 @@ final class ImageMatrixTests: XCTestCase {
         print("Image format matrix: \(lines.count) pairs, report at \(reportURL.path)")
     }
 
+    /// Runs every single-file image tool on every sample it's offered for,
+    /// plus a large noisy photo so Fit to Size has something to do. Presets
+    /// of one tool (Resize 3840 px) can't all apply to small samples, so
+    /// coverage is checked per kind of tool.
+    func testEveryTool() async throws {
+        let tools = ConverterRegistry.standard.available.filter {
+            $0.role == .tool && $0.id.hasPrefix("image.") && $0.minimumInputs == 1
+        }
+        let large = root.appendingPathComponent("samples/large.jpg")
+        try Samples.write([ImageEditTests.noise(width: 1200, height: 800)], type: "public.jpeg", to: large,
+                          frameProperties: [kCGImageDestinationLossyCompressionQuality: 0.95])
+        let all = fixtures + [Fixture(url: large, width: 1200, height: 800, frames: 1, animated: false, dpi: 72, duration: 0)]
+        var exercised = Set<String>()
+        var lines: [String] = []
+
+        for fixture in all {
+            let original = try InputFile(url: fixture.url)
+            for tool in tools where tool.accepts(original) {
+                let input = try isolatedCopy(of: fixture, in: root)
+                let before = try Data(contentsOf: input.url)
+                let label = "\(fixture.name) → \(tool.title) [\(tool.id)]"
+                do {
+                    let output = try await JobRunner.run(tool, on: input)
+                    XCTAssertEqual(output.deletingLastPathComponent(), input.url.deletingLastPathComponent(),
+                                   "\(label): output not beside the original")
+                    let problems = checkTool(output, of: fixture, made: tool, spec: tool.output(for: input))
+                    problems.forEach { XCTFail("\(label): \($0)") }
+                    lines.append("\(problems.isEmpty ? "ok  " : "FAIL") \(label)  (\(output.lastPathComponent))")
+                } catch let ConversionError.nothingToDo(reason) where tool is RemoveBackgroundConverter {
+                    // A test card may have nothing that looks like a subject.
+                    lines.append("ok   \(label)  (declined: \(reason))")
+                } catch {
+                    XCTFail("\(label): \(error.localizedDescription)")
+                    lines.append("FAIL \(label)  (\(error.localizedDescription))")
+                }
+                XCTAssertEqual(try Data(contentsOf: input.url), before, "\(label): original was modified")
+                exercised.insert(String(describing: type(of: tool)))
+            }
+        }
+
+        let kinds = Set(tools.map { String(describing: type(of: $0)) })
+        XCTAssertTrue(kinds.subtracting(exercised).isEmpty, "tools never tested: \(kinds.subtracting(exercised).sorted())")
+        let report = "Image tool matrix (\(lines.count) runs)\n" + lines.joined(separator: "\n") + "\n"
+        let reportURL = Bundle(for: Self.self).bundleURL.deletingLastPathComponent()
+            .appendingPathComponent("image-tool-matrix.txt")
+        try report.write(to: reportURL, atomically: true, encoding: .utf8)
+    }
+
+    /// Everything that's wrong with a tool's `output`: it must open as the
+    /// promised format, and rotations and size limits must hold.
+    func checkTool(_ output: URL, of fixture: Fixture, made tool: any Converter, spec: OutputSpec) -> [String] {
+        guard output.pathExtension == spec.fileExtension else {
+            return ["saved as .\(output.pathExtension), expected .\(spec.fileExtension)"]
+        }
+        guard let source = CGImageSourceCreateWithURL(output as CFURL, nil), CGImageSourceGetCount(source) > 0,
+              let image = CGImageSourceCreateImageAtIndex(source, CGImageSourceGetPrimaryImageIndex(source), nil)
+        else { return ["not a readable image"] }
+        var problems: [String] = []
+        switch tool {
+        case let tool as RotateImageConverter:
+            let (w, h) = tool.turn.isQuarterTurn ? (fixture.height, fixture.width) : (fixture.width, fixture.height)
+            if image.width != w || image.height != h {
+                problems.append("\(image.width)×\(image.height), expected \(w)×\(h)")
+            }
+            if fixture.animated && CGImageSourceGetCount(source) != fixture.frames {
+                problems.append("\(CGImageSourceGetCount(source)) frames, expected \(fixture.frames)")
+            }
+        case let tool as FitImageConverter:
+            let size = (try? output.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
+            if size > tool.limit { problems.append("\(size) bytes, over the \(tool.limit) limit") }
+        case is RemoveBackgroundConverter:
+            if !ImageCodec.hasAlpha(image) { problems.append("no transparency") }
+        default:
+            break
+        }
+        return problems
+    }
+
     /// Pairs a macOS version can't write, which the converter refuses
     /// rather than leaving a broken file: before macOS 26, ImageIO writes an
     /// unreadable PSD for a 1×1 image.
