@@ -11,6 +11,8 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - name: Show the toolchain
+        run: xcodebuild -version && swift --version
       - name: Build the swivel command
         run: make cli
       - name: Run the engine's tests

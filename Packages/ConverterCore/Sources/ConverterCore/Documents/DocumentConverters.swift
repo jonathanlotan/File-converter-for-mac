@@ -228,9 +228,12 @@ public struct PDFToImagesConverter: Converter {
 
 /// Every document and PDF converter, in menu order.
 public enum DocumentConverters {
-    public static let all: [any Converter] =
-        TextFormat.all.map { TextDocumentConverter($0) as any Converter }
-        + [PDFTextConverter() as any Converter]
-        + [ImageFormat.png, .jpeg, .heic, .tiff].map { PDFToImagesConverter($0) as any Converter }
-        + [MergePDFsConverter(), SplitPDFConverter(), CompressPDFConverter(), RecognizeTextConverter()]
+    // Typed in pieces, like ImageConverters.all, so older compilers check it quickly.
+    public static let all: [any Converter] = {
+        let text: [any Converter] = TextFormat.all.map { TextDocumentConverter($0) }
+        let pdfText: [any Converter] = [PDFTextConverter()]
+        let pdfImages: [any Converter] = [ImageFormat.png, .jpeg, .heic, .tiff].map { PDFToImagesConverter($0) }
+        let tools: [any Converter] = [MergePDFsConverter(), SplitPDFConverter(), CompressPDFConverter(), RecognizeTextConverter()]
+        return text + pdfText + pdfImages + tools
+    }()
 }
