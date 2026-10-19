@@ -54,6 +54,8 @@ final class ImageMatrixTests: XCTestCase {
                     let problems = try await check(output, of: fixture, made: converter)
                     problems.forEach { XCTFail("\(label): \($0)") }
                     lines.append("\(problems.isEmpty ? "ok  " : "FAIL") \(label)  (\(output.lastPathComponent))")
+                } catch where Self.mayDecline(fixture, converter) {
+                    lines.append("ok   \(label)  (declined on this macOS: \(error.localizedDescription))")
                 } catch {
                     XCTFail("\(label): \(error.localizedDescription)")
                     lines.append("FAIL \(label)  (\(error.localizedDescription))")
@@ -70,6 +72,15 @@ final class ImageMatrixTests: XCTestCase {
             .appendingPathComponent("image-matrix.txt")
         try report.write(to: reportURL, atomically: true, encoding: .utf8)
         print("Image format matrix: \(lines.count) pairs, report at \(reportURL.path)")
+    }
+
+    /// Pairs a macOS version can't write, which the converter refuses
+    /// rather than leaving a broken file: before macOS 26, ImageIO writes an
+    /// unreadable PSD for a 1×1 image.
+    static func mayDecline(_ fixture: Fixture, _ converter: any Converter) -> Bool {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 26,
+              let converter = converter as? ImageFormatConverter else { return false }
+        return converter.format == .psd && fixture.width == 1 && fixture.height == 1
     }
 
     /// Everything that's wrong with `output`, or an empty list.

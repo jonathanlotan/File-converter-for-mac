@@ -278,6 +278,13 @@ enum ImageCodec {
         guard CGImageDestinationFinalize(destination) else {
             throw ConversionError.encoderFailed("ImageIO couldn't write \(format.title)")
         }
+        // An encoder can report success and still write a file nothing can
+        // open (macOS 15's PSD writer, for a 1×1 image). Fail instead, so the
+        // job leaves no broken file behind.
+        guard let written = CGImageSourceCreateWithURL(url as CFURL, nil), CGImageSourceGetCount(written) > 0,
+              CGImageSourceCreateImageAtIndex(written, 0, nil) != nil else {
+            throw ConversionError.encoderFailed("this Mac couldn't make a readable \(format.title) of this image")
+        }
     }
 
     /// One page per frame. Page size comes from the image's DPI, so a

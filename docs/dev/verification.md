@@ -147,6 +147,8 @@ Status: **Built**, **Partly built** or **Skipped**. "Verified" says how.
   format can't record it.
 - Video resize presets fit the frame inside a 16:9 box. A portrait clip
   stored without rotation metadata comes out smaller than its label says.
+- Before macOS 26, ImageIO writes an unreadable PSD for a 1×1 image. Every image result is
+  now read back after it's written, so this fails with a message instead of leaving a broken file.
 - Until the 1.0 rename the app was called Converter, with the bundle ID
   `com.example.Converter`. It's now Swivel, `io.github.jonathanlotan.Swivel`.
 - Debug builds contain the `DebugAutoPickConverter` test hook; Release
