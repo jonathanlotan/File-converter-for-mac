@@ -1,0 +1,272 @@
+import AudioToolbox
+import AVFoundation
+import Foundation
+
+/// An audio format Converter can write with AudioToolbox.
+public struct AudioFormat: Sendable, Hashable {
+    public let id: String
+    public let title: String
+    public let fileExtension: String
+    let fileType: AudioFileTypeID
+    let formatID: AudioFormatID
+    /// Type of a file already in this format, for "same format" checks.
+    let typeIdentifier: String
+    public let isLossless: Bool
+    public let isSecondary: Bool
+
+    public static let m4a = AudioFormat(id: "m4a", title: "M4A", fileExtension: "m4a", fileType: kAudioFileM4AType,
+                                        formatID: kAudioFormatMPEG4AAC, typeIdentifier: "com.apple.m4a-audio",
+                                        isLossless: false, isSecondary: false)
+    public static let alac = AudioFormat(id: "alac", title: "M4A Lossless", fileExtension: "m4a", fileType: kAudioFileM4AType,
+                                         formatID: kAudioFormatAppleLossless, typeIdentifier: "com.apple.m4a-audio",
+                                         isLossless: true, isSecondary: false)
+    public static let wav = AudioFormat(id: "wav", title: "WAV", fileExtension: "wav", fileType: kAudioFileWAVEType,
+                                        formatID: kAudioFormatLinearPCM, typeIdentifier: "com.microsoft.waveform-audio",
+                                        isLossless: true, isSecondary: false)
+    public static let aiff = AudioFormat(id: "aiff", title: "AIFF", fileExtension: "aiff", fileType: kAudioFileAIFFType,
+                                         formatID: kAudioFormatLinearPCM, typeIdentifier: "public.aiff-audio",
+                                         isLossless: true, isSecondary: false)
+    public static let flac = AudioFormat(id: "flac", title: "FLAC", fileExtension: "flac", fileType: kAudioFileFLACType,
+                                         formatID: kAudioFormatFLAC, typeIdentifier: "org.xiph.flac",
+                                         isLossless: true, isSecondary: false)
+    public static let aac = AudioFormat(id: "aac", title: "AAC", fileExtension: "aac", fileType: kAudioFileAAC_ADTSType,
+                                        formatID: kAudioFormatMPEG4AAC, typeIdentifier: "public.aac-audio",
+                                        isLossless: false, isSecondary: true)
+    public static let caf = AudioFormat(id: "caf", title: "CAF", fileExtension: "caf", fileType: kAudioFileCAFType,
+                                        formatID: kAudioFormatLinearPCM, typeIdentifier: "com.apple.coreaudio-format",
+                                        isLossless: true, isSecondary: true)
+
+    public static let all: [AudioFormat] = [m4a, alac, wav, aiff, flac, aac, caf]
+
+    /// The encoder exists on this system.
+    var isEncodable: Bool { AudioEncoders.available.contains(formatID) }
+
+    /// File format description for `channels` at `sampleRate`, keeping up
+    /// to 24 bits of the source's depth for lossless formats.
+    func streamDescription(sampleRate: Double, channels: Int, sourceBits: Int) throws -> AudioStreamBasicDescription {
+        let bits = UInt32(min(max(sourceBits, 16), 24))
+        var format = AudioStreamBasicDescription()
+        format.mFormatID = formatID
+        format.mSampleRate = sampleRate
+        format.mChannelsPerFrame = UInt32(channels)
+        switch formatID {
+        case kAudioFormatLinearPCM:
+            format.mBitsPerChannel = bits
+            format.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked
+                | (fileType == kAudioFileAIFFType ? kAudioFormatFlagIsBigEndian : 0)
+            format.mBytesPerFrame = UInt32(channels) * bits / 8
+            format.mBytesPerPacket = format.mBytesPerFrame
+            format.mFramesPerPacket = 1
+            return format
+        case kAudioFormatAppleLossless, kAudioFormatFLAC:
+            format.mFormatFlags = bits == 24 ? 3 : 1 // 24-bit or 16-bit source data
+        default:
+            break
+        }
+        // Let AudioToolbox fill in packet sizes for compressed formats.
+        var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+        let status = AudioFormatGetProperty(kAudioFormatProperty_FormatInfo, 0, nil, &size, &format)
+        guard status == noErr else { throw ConversionError.encoderFailed("\(title) doesn't support this audio (\(status))") }
+        return format
+    }
+}
+
+enum AudioEncoders {
+    /// Encoders this system has (checked once).
+    static let available: Set<AudioFormatID> = {
+        var size: UInt32 = 0
+        guard AudioFormatGetPropertyInfo(kAudioFormatProperty_EncodeFormatIDs, 0, nil, &size) == noErr else { return [] }
+        var ids = [AudioFormatID](repeating: 0, count: Int(size) / MemoryLayout<AudioFormatID>.size)
+        guard AudioFormatGetProperty(kAudioFormatProperty_EncodeFormatIDs, 0, nil, &size, &ids) == noErr else { return [] }
+        return Set(ids).union([kAudioFormatLinearPCM])
+    }()
+}
+
+/// Audio file → another audio format, or a video's sound → an audio file.
+public struct AudioConverter: Converter {
+    public enum Source: String, Sendable {
+        case audio
+        case video
+    }
+
+    public let format: AudioFormat
+    public let source: Source
+
+    public init(_ format: AudioFormat, from source: Source) {
+        self.format = format
+        self.source = source
+    }
+
+    public var id: String { source == .audio ? "audio.\(format.id)" : "video.audio.\(format.id)" }
+    public var title: String { format.title }
+    public var role: ConverterRole { .format }
+    public var isSecondary: Bool { format.isSecondary }
+    /// A video's audio outputs sit together in an "Audio" submenu.
+    public var menuGroup: String? { source == .video ? "Audio" : nil }
+    public var isAvailable: Bool { format.isEncodable }
+
+    public func accepts(_ input: InputFile) -> Bool {
+        switch source {
+        case .video:
+            return MediaTypes.isMovie(input)
+        case .audio:
+            guard MediaTypes.isAudio(input) else { return false }
+            // Skip a re-encode to the very same container and codec.
+            if input.contentType.identifier == format.typeIdentifier, let info = input.audio,
+               info.formatID == format.formatID {
+                return false
+            }
+            return true
+        }
+    }
+
+    public func output(for input: InputFile) -> OutputSpec {
+        OutputSpec(fileExtension: format.fileExtension)
+    }
+
+    public func convert(_ input: InputFile, to destination: URL, options: ConversionOptions, progress: ProgressHandler) async throws {
+        try await AudioExport.run(from: input.url, to: destination, format: format,
+                                  sourceBits: input.audio?.bitsPerSample ?? 16,
+                                  exactLength: input.audio.flatMap { info in info.exactFrames.map { (info.sampleRate, $0) } },
+                                  bitRate: options.audioBitRate, progress: progress)
+    }
+}
+
+/// Decodes any AVFoundation-readable sound to PCM with AVAssetReader and
+/// encodes it with ExtAudioFile, so one path serves every audio output.
+enum AudioExport {
+    /// `exactLength` is the source's sample rate and true frame count, when
+    /// known. AVFoundation decodes FLAC in whole 4608-frame blocks, so
+    /// without it the output would gain up to 0.1 s of silence at the end.
+    static func run(from source: URL, to destination: URL, format: AudioFormat, sourceBits: Int,
+                    exactLength: (sampleRate: Double, frames: Int64)? = nil,
+                    bitRate: Int, progress: ProgressHandler) async throws {
+        let asset = AVURLAsset(url: source)
+        let tracks = try await asset.loadTracks(withMediaType: .audio)
+        guard let first = tracks.first else {
+            throw ConversionError.unsupported("\(source.lastPathComponent) has no sound.")
+        }
+        let duration = try await asset.load(.duration).seconds
+        guard let sourceFormat = try await first.load(.formatDescriptions).first
+            .flatMap({ CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }) else {
+            throw ConversionError.unreadableInput(source)
+        }
+
+        // AAC tops out at 48 kHz; keep it to stereo.
+        var settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsNonInterleaved: false,
+        ]
+        if format.formatID == kAudioFormatMPEG4AAC {
+            if sourceFormat.mSampleRate > 48_000 { settings[AVSampleRateKey] = 48_000 }
+            if sourceFormat.mChannelsPerFrame > 2 {
+                var layout = AudioChannelLayout()
+                layout.mChannelLayoutTag = kAudioChannelLayoutTag_Stereo
+                settings[AVNumberOfChannelsKey] = 2
+                settings[AVChannelLayoutKey] = Data(bytes: &layout, count: MemoryLayout<AudioChannelLayout>.size)
+            }
+        }
+
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderAudioMixOutput(audioTracks: tracks, audioSettings: settings)
+        output.alwaysCopiesSampleData = false
+        guard reader.canAdd(output) else { throw ConversionError.encoderFailed("can't read this audio") }
+        reader.add(output)
+        guard reader.startReading() else {
+            throw ConversionError.encoderFailed(reader.error?.localizedDescription ?? "can't read this audio")
+        }
+
+        var file: ExtAudioFileRef?
+        defer {
+            if let file { ExtAudioFileDispose(file) }
+            if reader.status == .reading { reader.cancelReading() }
+        }
+        var framesWritten = 0.0
+        var totalFrames = 1.0
+        var frameLimit = Double.infinity
+        var bytesPerFrame: UInt32 = 0
+
+        while let sample = output.copyNextSampleBuffer() {
+            try Task.checkCancellation()
+            if file == nil {
+                // Create the file once the decoded format is known.
+                guard let pcm = CMSampleBufferGetFormatDescription(sample)
+                    .flatMap({ CMAudioFormatDescriptionGetStreamBasicDescription($0)?.pointee }) else {
+                    throw ConversionError.encoderFailed("unknown decoded audio format")
+                }
+                file = try makeFile(at: destination, format: format, pcm: pcm, sourceBits: sourceBits, bitRate: bitRate)
+                bytesPerFrame = pcm.mBytesPerFrame
+                totalFrames = max(1, duration * pcm.mSampleRate)
+                if let exactLength {
+                    frameLimit = (Double(exactLength.frames) * pcm.mSampleRate / exactLength.sampleRate).rounded()
+                    totalFrames = max(1, frameLimit)
+                }
+            }
+            var block: CMBlockBuffer?
+            var buffers = AudioBufferList()
+            let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+                sample, bufferListSizeNeededOut: nil, bufferListOut: &buffers,
+                bufferListSize: MemoryLayout<AudioBufferList>.size, blockBufferAllocator: nil,
+                blockBufferMemoryAllocator: nil, flags: 0, blockBufferOut: &block)
+            guard status == noErr, let file else { throw ConversionError.encoderFailed("can't read audio samples (\(status))") }
+            // Interleaved PCM: a shorter write uses the start of the buffer.
+            // ExtAudioFile goes by the buffer's byte size, so trim that too.
+            let frames = UInt32(min(Double(CMSampleBufferGetNumSamples(sample)), frameLimit - framesWritten))
+            guard frames > 0 else { break }
+            buffers.mBuffers.mDataByteSize = min(buffers.mBuffers.mDataByteSize, frames * bytesPerFrame)
+            try check(ExtAudioFileWrite(file, frames, &buffers), "writing \(format.title)")
+            framesWritten += Double(frames)
+            progress(min(0.99, framesWritten / totalFrames))
+        }
+        try Task.checkCancellation()
+        guard reader.status == .completed || framesWritten >= frameLimit else {
+            throw ConversionError.encoderFailed(reader.error?.localizedDescription ?? "reading stopped early")
+        }
+        guard let finished = file else { throw ConversionError.unsupported("\(source.lastPathComponent) has no sound.") }
+        file = nil
+        // Disposing writes the file's final headers; its status matters.
+        try check(ExtAudioFileDispose(finished), "finishing \(format.title)")
+    }
+
+    private static func makeFile(at url: URL, format: AudioFormat, pcm: AudioStreamBasicDescription,
+                                 sourceBits: Int, bitRate: Int) throws -> ExtAudioFileRef {
+        var fileFormat = try format.streamDescription(sampleRate: pcm.mSampleRate, channels: Int(pcm.mChannelsPerFrame),
+                                                      sourceBits: sourceBits)
+        var file: ExtAudioFileRef?
+        try check(ExtAudioFileCreateWithURL(url as CFURL, format.fileType, &fileFormat, nil,
+                                            AudioFileFlags.eraseFile.rawValue, &file), "creating \(format.title)")
+        guard let file else { throw ConversionError.encoderFailed("creating \(format.title)") }
+        var client = pcm
+        try check(ExtAudioFileSetProperty(file, kExtAudioFileProperty_ClientDataFormat,
+                                          UInt32(MemoryLayout<AudioStreamBasicDescription>.size), &client),
+                  "setting up \(format.title)")
+        if format.formatID == kAudioFormatMPEG4AAC {
+            setBitRate(file, kbps: pcm.mChannelsPerFrame == 1 ? bitRate / 2 : bitRate)
+        }
+        return file
+    }
+
+    /// Best effort: if the encoder refuses the rate, its default stays.
+    private static func setBitRate(_ file: ExtAudioFileRef, kbps: Int) {
+        var converter: AudioConverterRef?
+        var size = UInt32(MemoryLayout<AudioConverterRef?>.size)
+        guard ExtAudioFileGetProperty(file, kExtAudioFileProperty_AudioConverter, &size, &converter) == noErr,
+              let converter else { return }
+        var rate = UInt32(kbps * 1000)
+        guard AudioConverterSetProperty(converter, kAudioConverterEncodeBitRate, UInt32(MemoryLayout<UInt32>.size), &rate) == noErr
+        else { return }
+        // A nil config tells ExtAudioFile to re-read the converter's settings.
+        var config: CFArray?
+        withUnsafeMutablePointer(to: &config) { pointer in
+            _ = ExtAudioFileSetProperty(file, kExtAudioFileProperty_ConverterConfig,
+                                        UInt32(MemoryLayout<CFArray?>.size), pointer)
+        }
+    }
+
+    private static func check(_ status: OSStatus, _ step: String) throws {
+        guard status == noErr else { throw ConversionError.encoderFailed("\(step) (\(status))") }
+    }
+}

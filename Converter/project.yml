@@ -1,0 +1,145 @@
+# Generate the Xcode project with:  make project   (runs `xcodegen` here)
+name: Converter
+options:
+  deploymentTarget:
+    macOS: "13.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+packages:
+  ConverterCore:
+    path: ../Packages/ConverterCore
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    # Apple silicon only.
+    ARCHS: arm64
+    EXCLUDED_ARCHS: x86_64
+    # "Sign to Run Locally" (ad hoc) until a Developer ID is available.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: YES
+    # One plain executable instead of a stub plus Converter.debug.dylib
+    # (that split only serves SwiftUI previews).
+    ENABLE_DEBUG_DYLIB: NO
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "2"
+
+targets:
+  Converter:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+    dependencies:
+      - package: ConverterCore
+        product: ConverterCore
+      # Embedded in Contents/PlugIns.
+      - target: ConverterQuickAction
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Converter
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.utilities
+        # Menu bar app: no Dock icon, no main menu.
+        LSUIElement: true
+        NSHumanReadableCopyright: ""
+        # Lets Finder offer "Open With > Converter" for any file (images,
+        # video, audio, documents, archives), without ever becoming the
+        # default app.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Any File
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.data]
+        # "Convert with Converter…" in Finder's right-click > Services. An
+        # NSRequiredContext (even empty) makes it enabled by default.
+        NSServices:
+          - NSMenuItem:
+              default: Convert with Converter…
+            NSMessage: convertFiles
+            NSPortName: Converter
+            NSSendFileTypes: [public.item]
+            NSRequiredContext: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.Converter
+        PRODUCT_NAME: Converter
+        # Not "Converter": that would clash with ConverterCore's Converter protocol.
+        PRODUCT_MODULE_NAME: ConverterApp
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_APP_SANDBOX: NO
+        INFOPLIST_KEY_LSUIElement: YES
+
+  ConverterQuickAction:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: QuickAction
+    info:
+      path: QuickAction/Info.plist
+      properties:
+        CFBundleDisplayName: Convert with Converter
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSExtension:
+          # A Finder Quick Action without its own window (Xcode's "Action
+          # Extension, No User Interface" template).
+          NSExtensionPointIdentifier: com.apple.services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ActionRequestHandler
+          NSExtensionAttributes:
+            NSExtensionActivationRule: >-
+              SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $attachment,
+              ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.item").@count >= 1).@count >= 1
+            NSExtensionServiceRoleType: NSExtensionServiceRoleTypeEditor
+            NSExtensionServiceAllowsFinderPreviewItem: true
+            NSExtensionServiceFinderPreviewIconName: NSActionTemplate
+            NSExtensionServiceAllowsTouchBarItem: false
+    entitlements:
+      path: QuickAction/QuickAction.entitlements
+      properties:
+        # Every app extension must be sandboxed.
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.Converter.QuickAction
+        PRODUCT_NAME: ConverterQuickAction
+        GENERATE_INFOPLIST_FILE: NO
+
+  ConverterTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AppTests
+      # The extension's logic, compiled into the tests as well.
+      - path: QuickAction/QuickActionSupport.swift
+    dependencies:
+      # ConverterCore comes from the app via TEST_HOST; linking it again
+      # would give the tests a second copy of its types and registries.
+      - target: Converter
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.ConverterTests
+        GENERATE_INFOPLIST_FILE: YES
+        # Xcode's XCTest is built for macOS 14; the app itself still targets 13.
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Converter.app/Contents/MacOS/Converter
+        BUNDLE_LOADER: $(TEST_HOST)
+
+schemes:
+  Converter:
+    build:
+      targets:
+        Converter: all
+        ConverterTests: [test]
+    test:
+      targets: [ConverterTests]
+    run:
+      config: Debug
