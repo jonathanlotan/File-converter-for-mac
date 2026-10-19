@@ -154,6 +154,11 @@ aren't included.
 **Other ways in:** drop files on the menu bar icon, choose **Convert Files…** from its menu,
 use **Services › Convert with Swivel…** or the Quick Action in Finder, or **Open With**.
 
+- **Shortcuts:** the **Convert File** action takes files and a conversion (JPEG, Resize › 1920 px,
+  Crop › Square…) and returns the results, so a folder automation or a Quick Action can convert
+  without the wheel. **Convert to JPEG**, **Compress** and **Convert to PDF** come ready-made, in
+  Spotlight too: "Compress with Swivel".
+
 ### The command line
 
 The app includes `swivel`, the same engine without the wheel. Homebrew puts it on your `PATH`;

@@ -6,7 +6,7 @@ import Foundation
 @main
 struct CLI {
     /// Kept in step with MARKETING_VERSION in Converter/project.yml (`make release` checks).
-    static let version = "1.0.0"
+    static let version = "1.1.0"
 
     static let usage = """
     usage: swivel formats

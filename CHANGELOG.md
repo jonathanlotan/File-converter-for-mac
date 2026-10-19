@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 (unreleased)
+
+- **Shortcuts.** A **Convert File** action for the Shortcuts app: files and a conversion in,
+  the results out, saved next to the originals. Builds folder automations and Quick Actions
+  without the wheel. **Convert to JPEG**, **Compress** and **Convert to PDF** come ready-made,
+  in Spotlight too.
+
 ## 1.0.0 (unreleased)
 
 The first public release.
