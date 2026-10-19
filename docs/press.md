@@ -27,13 +27,14 @@ the pointer. It's free, open source and works fully offline.
 Most file conversions mean finding a website, uploading the file and hoping it isn't kept.
 Swivel does them where the file already is. Start dragging any file in Finder or on the desktop
 and tap a key: Shift opens the formats it can become (JPEG, PNG, HEIC, MP4, M4A, PDF and more),
-Command opens tools (resize, crop, compress, remove metadata, recognize text, merge PDFs) and
+Command opens tools (resize, crop, rotate, remove the background, fit under 8 MB, compress,
+remove metadata, recognize text, merge PDFs) and
 Control opens actions (AirDrop, Mail, a floating shelf, copy the path). Drop on a slice and the
 result appears next to the original, which is never changed.
 
 Swivel uses only Apple's frameworks and the tools that come with macOS, needs no Accessibility
-permission, and contains no network code at all. It also includes a `swivel` command line with
-the same engine. The Shift-drag idea comes from Tangerine by Leap Studio; Swivel is an
+permission, and contains no network code at all. It works with Shortcuts (a Convert File action
+for automations) and includes a `swivel` command line with the same engine. The Shift-drag idea comes from Tangerine by Leap Studio; Swivel is an
 independent, open-source take.
 
 ## Images

@@ -7,6 +7,20 @@
 Date: 2026-10-19. Build: 0.2.0, Apple M5, macOS 26.6.2, Xcode 27.1.
 Plan and decisions: [plan.md](plan.md).
 
+## Since this report (2026-10-20, before 1.0.0)
+
+- Added: Shortcuts actions (Convert File; Convert to JPEG, Compress and Convert to PDF), rotate
+  and flip, Remove Background (macOS 14+), Fit to Size, Remove Metadata for video and PDF,
+  Compress for audio, and the welcome window.
+- Image results are read back after writing; Compress and Fit to Size decline rather than save a
+  result that isn't smaller.
+- **93 engine tests and 121 app tests** (3 README renders skipped) pass, and CI runs them on every
+  push: the engine on macOS 26 and 15, the app on macOS 26 (Xcode 26.6). Release builds are
+  checked with an ad-hoc signed dry run of `make release`; Developer ID signing and notarization
+  wait for the certificate.
+- Still not tried by hand: the Shortcuts actions in the Shortcuts app (they need a build with a
+  team identity), and the new tools from the wheel on a real drag.
+
 ## Summary
 
 - All six milestones are built.
