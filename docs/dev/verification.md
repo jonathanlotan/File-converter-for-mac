@@ -18,8 +18,8 @@ Plan and decisions: [plan.md](plan.md).
   push: the engine on macOS 26 and 15, the app on macOS 26 (Xcode 26.6). Release builds are
   checked with an ad-hoc signed dry run of `make release`; Developer ID signing and notarization
   wait for the certificate.
-- Still not tried by hand: the Shortcuts actions in the Shortcuts app (they need a build with a
-  team identity), and the new tools from the wheel on a real drag.
+- To try by hand with the signed release build: the Shortcuts actions in the Shortcuts app (an
+  ad-hoc build doesn't show them there), and the new tools from the wheel on a real drag.
 
 ## Summary
 
