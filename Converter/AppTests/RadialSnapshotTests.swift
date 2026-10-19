@@ -87,3 +87,32 @@ final class RadialSnapshotTests: XCTestCase {
         }
     }
 }
+
+/// The middle of the wheel shrinks long names, and shortens a word only as
+/// a last resort, instead of breaking it across lines ("IMG_2041.he / ic").
+@MainActor
+final class CentreCaptionTests: XCTestCase {
+    private final class Results {
+        var fitted: [(string: String, size: CGFloat)] = []
+    }
+
+    func testLongNamesFitWithoutBreakingWords() throws {
+        let results = Results()
+        let canvas = Canvas { context, _ in
+            for name in ["JPEG", "IMG_2041.heic", "Screenshot_2026-10-19_at_22.41.07.png", "IMG_2041 (square).heic"] {
+                results.fitted.append(RadialMenuView.fit(name, width: 80, size: 12, minimum: 9.5, weight: .semibold,
+                                                         in: context))
+            }
+        }
+        .frame(width: 10, height: 10)
+        XCTAssertNotNil(ImageRenderer(content: canvas).cgImage)
+        XCTAssertEqual(results.fitted.count, 4)
+        XCTAssertEqual(results.fitted[0].string, "JPEG")
+        XCTAssertEqual(results.fitted[0].size, 12, "short names keep the full size")
+        XCTAssertEqual(results.fitted[1].string, "IMG_2041.heic", "shrunk, not cut")
+        XCTAssertLessThan(results.fitted[1].size, 12)
+        XCTAssertTrue(results.fitted[2].string.contains("…"), "too long even when small: shortened in the middle")
+        XCTAssertTrue(results.fitted[2].string.hasSuffix(".png"))
+        XCTAssertEqual(results.fitted[3].string, "IMG_2041 (square).heic", "words that fit are left whole")
+    }
+}

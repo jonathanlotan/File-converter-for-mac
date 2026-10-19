@@ -7,7 +7,7 @@ CORE          := Packages/ConverterCore
 CORE_BUILD    := $(BUILD_ROOT)/ConverterCore
 SWIFT         := DEVELOPER_DIR=$(DEVELOPER_DIR) swift
 
-.PHONY: core core-test cli project app app-test run test clean
+.PHONY: core core-test cli project app app-test run test readme-images clean
 
 core:
 	$(SWIFT) build --package-path $(CORE) --scratch-path $(CORE_BUILD)
@@ -43,6 +43,15 @@ run: app
 	open "$(APP)"
 
 test: core-test app-test
+
+# Renders the README's pictures from the app's own views into docs/images.
+README_IMAGES := $(CURDIR)/docs/images
+readme-images: project
+	@set -o pipefail; TEST_RUNNER_README_IMAGES=$(README_IMAGES) $(XCODEBUILD) test \
+		-only-testing:ConverterTests/ReadmeImageTests 2>&1 | grep -vE "$(NOISE)" \
+		| grep -E "error:|Test Case.*(passed|failed)|TEST (SUCCEEDED|FAILED)"
+	sips -s format png --resampleWidth 256 "$(APP)/Contents/Resources/AppIcon.icns" \
+		--out $(README_IMAGES)/icon.png >/dev/null
 
 clean:
 	rm -rf $(BUILD_ROOT)

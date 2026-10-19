@@ -8,7 +8,9 @@ Plan and decisions: [plan.md](plan.md).
 - All six milestones are built.
 - A clean rebuild passed **104 automated tests**: 47 in `ConverterCore` and
   57 in the app. After the three-ring change, 125 pass (47 + 78). With
-  sharing, cropping and metadata added, **165 pass (64 + 101)**. Together they convert **479 file pairs** (209 image pairs
+  sharing, cropping and metadata added, **166 pass (64 + 102)**; two more
+  app tests only render the README's pictures and are skipped unless
+  `make readme-images` runs them. Together they convert **479 file pairs** (209 image pairs
   plus 270 video, audio, document, PDF and archive pairs) and run the tools
   on purpose-made samples. The per-pair results are in
   [test-reports/](test-reports/).

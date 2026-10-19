@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try the Wheel</title>
+<meta name="description" content="Try File converter for Mac's drag-and-tap wheel in your browser. Nothing is uploaded: the files are pretend.">
+<link rel="icon" href="images/icon.png">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f5f5f7;
+  --text: #1d1d1f;
+  --secondary: #6e6e73;
+  --accent: #007aff;
+  --card: #ffffff;
+  --line: rgba(0, 0, 0, 0.1);
+  --window: rgba(255, 255, 255, 0.82);
+  --window-bar: rgba(246, 246, 248, 0.9);
+  --selected: rgba(0, 122, 255, 0.14);
+  --glass: rgba(255, 255, 255, 0.62);
+  --glass-edge: rgba(255, 255, 255, 0.75);
+  --primary-rgb: 0, 0, 0;
+  --toast: rgba(255, 255, 255, 0.96);
+  --key: #ffffff;
+  --wallpaper: linear-gradient(135deg, #c9d6ff 0%, #e6d5f5 45%, #f9d9e3 100%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161618;
+    --text: #f5f5f7;
+    --secondary: #a1a1a6;
+    --accent: #0a84ff;
+    --card: #232326;
+    --line: rgba(255, 255, 255, 0.12);
+    --window: rgba(36, 36, 40, 0.82);
+    --window-bar: rgba(44, 44, 48, 0.92);
+    --selected: rgba(10, 132, 255, 0.28);
+    --glass: rgba(40, 40, 48, 0.62);
+    --glass-edge: rgba(255, 255, 255, 0.16);
+    --primary-rgb: 255, 255, 255;
+    --toast: rgba(44, 44, 48, 0.97);
+    --key: #3a3a3e;
+    --wallpaper: linear-gradient(135deg, #1b2244 0%, #2c1d46 50%, #43203f 100%);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161618;
+  --text: #f5f5f7;
+  --secondary: #a1a1a6;
+  --accent: #0a84ff;
+  --card: #232326;
+  --line: rgba(255, 255, 255, 0.12);
+  --window: rgba(36, 36, 40, 0.82);
+  --window-bar: rgba(44, 44, 48, 0.92);
+  --selected: rgba(10, 132, 255, 0.28);
+  --glass: rgba(40, 40, 48, 0.62);
+  --glass-edge: rgba(255, 255, 255, 0.16);
+  --primary-rgb: 255, 255, 255;
+  --toast: rgba(44, 44, 48, 0.97);
+  --key: #3a3a3e;
+  --wallpaper: linear-gradient(135deg, #1b2244 0%, #2c1d46 50%, #43203f 100%);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+header {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 16px 12px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+header img { width: 64px; height: 64px; flex: none; }
+header h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
+header p { margin: 2px 0 0; color: var(--secondary); }
+
+.steps {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  color: var(--secondary);
+  font-size: 14px;
+}
+.steps b { color: var(--text); font-weight: 600; }
+kbd {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--key);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--line);
+  font: 600 13px/1.5 inherit;
+  text-align: center;
+  color: var(--text);
+}
+
+.stage {
+  position: relative;
+  max-width: 980px;
+  height: 560px;
+  margin: 16px auto 0;
+  border-radius: 18px;
+  background: var(--wallpaper);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+@media (max-width: 1012px) { .stage { border-radius: 0; } }
+
+.finder {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(620px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+  border-radius: 14px;
+  background: var(--window);
+  backdrop-filter: blur(30px) saturate(1.6);
+  -webkit-backdrop-filter: blur(30px) saturate(1.6);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28), 0 0 0 0.5px var(--line);
+  overflow: hidden;
+}
+.finder .bar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  background: var(--window-bar);
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+  font-size: 13px;
+}
+.finder .bar i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+.finder .bar i:nth-child(1) { background: #ff5f57; }
+.finder .bar i:nth-child(2) { background: #febc2e; }
+.finder .bar i:nth-child(3) { background: #28c840; }
+.finder .bar span { flex: 1; text-align: center; margin-right: 52px; }
+.files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
+  padding: 16px;
+  min-height: 250px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+.file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  cursor: grab;
+  touch-action: manipulation;
+  outline: none;
+}
+.file:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+.file.selected { background: var(--selected); }
+.file .name {
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  word-break: break-word;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.file.new .name { color: var(--accent); font-weight: 600; }
+.file .progress {
+  width: 60px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+.file .progress div { height: 100%; width: 0; background: var(--accent); transition: width 0.1s linear; }
+
+/* File icons, drawn in CSS. */
+.icon { width: 56px; height: 56px; position: relative; display: flex; align-items: center; justify-content: center; }
+.icon .photo {
+  width: 54px; height: 41px; border-radius: 3px; border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  background:
+    radial-gradient(circle at 70% 42%, #ffe08a 0 9%, transparent 10%),
+    radial-gradient(ellipse 90% 55% at 30% 100%, #2f7d45 0 60%, transparent 61%),
+    radial-gradient(ellipse 80% 45% at 85% 105%, #23613a 0 60%, transparent 61%),
+    linear-gradient(#3b4f9c, #8c86d6 55%, #f2a07a);
+}
+.icon .photo.square { width: 44px; height: 44px; }
+.icon .photo.tall { width: 34px; height: 50px; }
+.icon .movie {
+  width: 54px; height: 38px; border-radius: 5px; background: #1c1c1e;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.icon .movie::after {
+  content: ""; border-left: 13px solid #fff; border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  margin-left: 3px;
+}
+.icon .page {
+  width: 42px; height: 54px; border-radius: 3px; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  position: relative;
+  background-image: linear-gradient(transparent 14px, #d8d8dc 14px 16px, transparent 16px 21px, #d8d8dc 21px 23px,
+                    transparent 23px 28px, #d8d8dc 28px 30px, transparent 30px);
+  background-size: 28px 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.icon .page b {
+  position: absolute; left: -4px; right: -4px; bottom: 6px;
+  border-radius: 3px; color: #fff; font: 700 9px/15px inherit; text-align: center; letter-spacing: 0.04em;
+}
+.icon .folder {
+  width: 54px; height: 42px; margin-top: 6px; border-radius: 5px; position: relative;
+  background: linear-gradient(#6cc4ff, #2f9cf3);
+}
+.icon .folder::before {
+  content: ""; position: absolute; left: 0; top: -6px; width: 22px; height: 10px; border-radius: 4px 4px 0 0;
+  background: #59b6fb;
+}
+.icon .box {
+  width: 50px; height: 44px; border-radius: 6px; background: linear-gradient(#e2c08d, #c99d5f);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3); position: relative;
+}
+.icon .box::after {
+  content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 6px; margin-left: -3px;
+  background: repeating-linear-gradient(#8a6a3a 0 3px, #f0dcb8 3px 6px);
+}
+
+/* The wheel. */
+.wheel {
+  position: fixed;
+  width: 472px;
+  height: 472px;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(calc(var(--s, 1) * 0.86));
+  transition: opacity 0.16s ease-out, transform 0.3s cubic-bezier(0.2, 1.25, 0.4, 1);
+}
+.wheel.open { opacity: 1; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+.wheel.tap { pointer-events: auto; }
+.wheel .disc, .wheel .band {
+  position: absolute;
+  inset: 0;
+  background: var(--glass);
+  backdrop-filter: blur(22px) saturate(1.8);
+  -webkit-backdrop-filter: blur(22px) saturate(1.8);
+}
+.wheel .disc {
+  inset: 88px;
+  border-radius: 50%;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25), inset 0 0 0 1px var(--glass-edge);
+}
+.wheel .band { transition: opacity 0.12s; }
+.wheel svg { position: absolute; inset: 0; overflow: visible; }
+.wheel .content { transition: opacity 0.12s; }
+.wheel .content.fading { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .wheel, .wheel.open { transition: opacity 0.12s; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+}
+
+.ghost {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  opacity: 0.75;
+  /* Below and to the right of the pointer, so the slice under it stays readable. */
+  transform: translate(6px, 10px) scale(0.8);
+  transform-origin: top left;
+}
+
+.switcher {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: none;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--toast);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25), 0 0 0 0.5px var(--line);
+}
+.switcher.shown { display: flex; }
+.switcher button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text);
+  font: 600 14px/1 inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.switcher button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+  width: min(460px, calc(100% - 32px));
+}
+.toast {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--toast);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22), 0 0 0 0.5px var(--line);
+  font-size: 14px;
+  animation: toast-in 0.25s ease-out;
+}
+.toast.out { opacity: 0; transition: opacity 0.4s; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } }
+
+.shelf {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  width: 190px;
+  border-radius: 12px;
+  background: var(--window);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), 0 0 0 0.5px var(--line);
+  font-size: 12px;
+  display: none;
+  z-index: 5;
+}
+.shelf.shown { display: block; }
+.shelf header {
+  all: unset; display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 10px; border-bottom: 1px solid var(--line); font-weight: 600;
+}
+.shelf header button { border: 0; background: none; color: var(--secondary); cursor: pointer; font-size: 14px; }
+.shelf ul { list-style: none; margin: 0; padding: 6px; }
+.shelf li { padding: 5px 6px; border-radius: 6px; }
+
+dialog {
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  width: min(440px, calc(100% - 32px));
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.25); }
+dialog .bar { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; justify-content: space-between; }
+dialog .bar button { border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+dialog .body { padding: 8px 16px 16px; max-height: 70vh; overflow: auto; }
+dialog h3 { font-size: 13px; margin: 14px 0 6px; }
+dialog dl { margin: 0; border-radius: 10px; background: rgba(var(--primary-rgb), 0.04); padding: 2px 12px; }
+dialog dl div { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+dialog dl div:last-child { border-bottom: 0; }
+dialog dd { margin: 0; color: var(--secondary); text-align: right; }
+dialog img { width: 100%; height: auto; display: block; }
+
+.below {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 14px 16px 40px;
+  color: var(--secondary);
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.below button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<header>
+  <img src="images/icon.png" alt="">
+  <div>
+    <h1>Try the wheel</h1>
+    <p>A browser copy of <a href="https://github.com/jonathanlotan/File-converter-for-mac">File converter for Mac</a>.
+      The files are pretend: nothing is read, changed or uploaded.</p>
+  </div>
+</header>
+
+<div class="steps" id="steps">
+  <span><b>1.</b> Start dragging a file</span>
+  <span><b>2.</b> Tap <kbd>⇧</kbd> Convert, <kbd>⌘</kbd> Tools or <kbd>⌃</kbd> Actions</span>
+  <span><b>3.</b> Scroll to switch rings</span>
+  <span><b>4.</b> Drop on a slice (or in the middle to cancel)</span>
+  <span>No keyboard? <b>Tap a file.</b></span>
+</div>
+
+<div class="stage" id="stage">
+  <div class="finder" role="region" aria-label="Pictures folder">
+    <div class="bar"><i></i><i></i><i></i><span>Pictures</span></div>
+    <div class="files" id="files"></div>
+  </div>
+  <div class="shelf" id="shelf" role="region" aria-label="Shelf">
+    <header><span>Shelf</span><button type="button" id="shelf-close" aria-label="Close the shelf">✕</button></header>
+    <ul id="shelf-items"></ul>
+  </div>
+</div>
+
+<div class="below">
+  <span>Built from the app's own menus, names and wheel geometry. Key taps need a real keyboard; touch uses tap mode.</span>
+  <span><button type="button" id="reset">Reset the files</button> <button type="button" id="theme">Switch light or dark</button></span>
+</div>
+
+<div class="wheel" id="wheel" aria-hidden="true">
+  <div class="band" id="band"></div>
+  <div class="disc"></div>
+  <svg id="svg" viewBox="0 0 472 472" width="472" height="472"></svg>
+</div>
+<div class="switcher" id="switcher" role="group" aria-label="Rings">
+  <button type="button" data-mode="actions">⌃ Actions</button>
+  <button type="button" data-mode="tools">⌘ Tools</button>
+  <button type="button" data-mode="formats">⇧ Convert</button>
+  <button type="button" data-mode="cancel">Cancel</button>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<dialog id="dialog"><div class="bar"><span id="dialog-title"></span><button type="button" id="dialog-close">Done</button></div><div class="body" id="dialog-body"></div></dialog>
+
+<script>
+"use strict";
+
+// ---- Geometry (same numbers as the app's RadialGeometry) ----------------
+const G = { inner: 54, outer: 148, subInner: 154, subOuter: 220, maxSub: Math.PI / 6.5, slack: 16, gap: 6 };
+const SIDE = 2 * (G.subOuter + G.slack);
+const C = SIDE / 2;
+const DWELL = 250;
+const WHEEL_ORDER = ["actions", "tools", "formats"];
+const RINGS = {
+  formats: { title: "Convert", key: "⇧" },
+  tools: { title: "Tools", key: "⌘" },
+  actions: { title: "Actions", key: "⌃" },
+};
+
+const span = (n) => 2 * Math.PI / Math.max(n, 1);
+const subSpan = (n) => Math.min(G.maxSub, 2 * Math.PI / Math.max(n, 1));
+const subCenter = (i, n, parent, count) => parent * span(count) - subSpan(n) * n / 2 + subSpan(n) * (i + 0.5);
+const pt = (a, r) => [C + r * Math.sin(a), C - r * Math.cos(a)];
+const f = (n) => Math.round(n * 100) / 100;
+function clockwise(x, y) { let a = Math.atan2(x, y); return a < 0 ? a + 2 * Math.PI : a; }
+function signedDiff(a, b) { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; }
+
+/** What's under a point (y up, relative to the centre), as in the app. */
+function hitTest(x, y, count, open) {
+  const r = Math.hypot(x, y), a = clockwise(x, y);
+  if (r < G.inner) return { kind: "center" };
+  if (r < G.subInner) {
+    if (!count) return { kind: "outside" };
+    const s = span(count);
+    return { kind: "slice", index: Math.floor((a + s / 2) / s) % count };
+  }
+  if (open && open.members > 0 && r <= G.subOuter + G.slack) {
+    const s = subSpan(open.members);
+    const offset = signedDiff(a, open.parent * span(count)) + s * open.members / 2;
+    if (offset >= 0 && offset < s * open.members) return { kind: "sub", index: Math.min(Math.floor(offset / s), open.members - 1) };
+  }
+  return { kind: "outside" };
+}
+
+/** A ring slice with rounded corners (the app's BandShape). */
+function band(inner, outer, start, end, corner) {
+  const sweep = end - start;
+  if (sweep >= 2 * Math.PI - 1e-6) {
+    return `M${C - outer},${C}a${outer},${outer} 0 1,0 ${2 * outer},0a${outer},${outer} 0 1,0 ${-2 * outer},0Z` +
+           `M${C - inner},${C}a${inner},${inner} 0 1,1 ${2 * inner},0a${inner},${inner} 0 1,1 ${-2 * inner},0Z`;
+  }
+  const c = Math.max(0, Math.min(corner, (outer - inner) / 2, sweep * inner / 2 - 0.5));
+  const ot = c / outer, it = c / Math.max(inner, 1);
+  const P = (a, r) => pt(a, r).map(f).join(",");
+  const large = (from, to) => (Math.abs(to - from) > Math.PI ? 1 : 0);
+  return `M${P(start + ot, outer)}` +
+    `A${outer},${outer} 0 ${large(start + ot, end - ot)},1 ${P(end - ot, outer)}` +
+    `Q${P(end, outer)} ${P(end, outer - c)}` +
+    `L${P(end, inner + c)}` +
+    `Q${P(end, inner)} ${P(end - it, inner)}` +
+    `A${inner},${inner} 0 ${large(start + it, end - it)},0 ${P(start + it, inner)}` +
+    `Q${P(start, inner)} ${P(start, inner + c)}` +
+    `L${P(start, outer - c)}` +
+    `Q${P(start, outer)} ${P(start + ot, outer)}Z`;
+}
+
+// ---- Symbols (simple line drawings in the spirit of SF Symbols) --------
+const SYMBOLS = {
+  share: "M8 10H6.5v10h11V10H16M12 3.5v11M8.5 7 12 3.5 15.5 7",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 11v6M12 7.6v.4",
+  tray: "M3.5 13.5 6.5 5h11l3 8.5V19h-17ZM3.5 13.5h5l1.2 2h4.6l1.2-2h5",
+  copy: "M8.5 8.5h10v12h-10ZM5.5 15.5v-12h10",
+  folder: "M3.5 6.5h6l2 2h9v10h-17Z",
+  link: "M10.5 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1M13.5 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1",
+  terminal: "M3.5 5.5h17v13h-17ZM7.5 10l2.5 2-2.5 2M12 14.5h4.5",
+  resize: "M14 4.5h5.5V10M19.5 4.5 13 11M10 19.5H4.5V14M4.5 19.5 11 13",
+  crop: "M6.5 2.5v15h15M2.5 6.5h15v15",
+  compress: "M4.5 14h5.5v5.5M10 14l-6.5 6.5M19.5 10H14V4.5M14 10l6.5-6.5",
+  eyeSlash: "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12ZM9.5 12a2.5 2.5 0 0 0 5 0M4 4l16 16",
+  text: "M3.5 8V3.5H8M16 3.5h4.5V8M20.5 16v4.5H16M8 20.5H3.5V16M7.5 9h9M7.5 12h9M7.5 15h6",
+  archive: "M3.5 4.5h17v4h-17ZM5 8.5v11h14v-11M10 12h4",
+  more: "M6 12h.01M12 12h.01M18 12h.01",
+  doc: "M6.5 2.5h7l4.5 4.5v14.5h-11.5ZM13.5 2.5V7H18",
+  camera: "M3.5 7.5h4l1.5-2h6l1.5 2h4v11h-17ZM12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+  film: "M4.5 4.5h15v15h-15ZM8 4.5v15M16 4.5v15M4.5 9H8M4.5 15H8M16 9h3.5M16 15h3.5",
+  waveform: "M4 12h1M7 9v6M10 6v12M13 9v6M16 7v10M19 11v2",
+  speakerSlash: "M4.5 9.5h3l4-3.5v12l-4-3.5h-3ZM15 9l5 6M20 9l-5 6",
+  merge: "M6 4v5a6 6 0 0 0 6 6M18 4v5a6 6 0 0 1-6 6v5",
+};
+
+// ---- Files and what the app offers for them ------------------------------
+const IMAGE_FORMATS = [
+  ["JPEG", "jpg"], ["PNG", "png"], ["HEIC", "heic"], ["AVIF", "avif"], ["TIFF", "tiff"], ["GIF", "gif"], ["PDF", "pdf"],
+];
+const IMAGE_MORE = [["BMP", "bmp"], ["JPEG 2000", "jp2"], ["ICNS", "icns"], ["ICO", "ico"], ["PSD", "psd"], ["TGA", "tga"]];
+const KINDS = {
+  heic: "image", jpg: "image", png: "image", avif: "image", tiff: "image", gif: "image", bmp: "image", jp2: "image",
+  icns: "image", ico: "image", psd: "image", tga: "image",
+  mov: "video", mp4: "video", m4v: "video",
+  aiff: "audio", wav: "audio", m4a: "audio", flac: "audio", aac: "audio", caf: "audio",
+  pdf: "pdf", docx: "doc", doc: "doc", txt: "doc", rtf: "doc", html: "doc", odt: "doc",
+  zip: "archive", gz: "archive", xz: "archive", "7z": "archive", aar: "archive",
+};
+const KIND_NAMES = {
+  heic: "HEIF image", jpg: "JPEG image", png: "PNG image", avif: "AVIF image", tiff: "TIFF image", gif: "GIF image",
+  bmp: "BMP image", jp2: "JPEG 2000 image", icns: "Apple icon image", ico: "Windows icon image", psd: "Photoshop image",
+  tga: "TGA image", mov: "QuickTime movie", mp4: "MPEG-4 movie", m4v: "Video", aiff: "AIFF audio", wav: "Waveform audio",
+  m4a: "Apple MPEG-4 audio", flac: "FLAC audio", aac: "AAC audio", caf: "Core Audio file", pdf: "PDF document",
+  docx: "Word document", doc: "Word 97 document", txt: "Plain text document", rtf: "Rich text document",
+  html: "HTML document", odt: "OpenDocument text", zip: "ZIP archive", gz: "Gzip archive", xz: "XZ archive",
+  "7z": "7-Zip archive", aar: "Apple Archive",
+};
+
+const START_FILES = [
+  { name: "IMG_2041.heic", w: 4032, h: 3024, size: 2.4e6 },
+  { name: "Clip.mov", w: 3840, h: 2160, size: 48e6, seconds: 12 },
+  { name: "Report.pdf", pages: 3, size: 820e3 },
+  { name: "Notes.docx", size: 18e3 },
+  { name: "Voice.aiff", size: 1.1e6, seconds: 6 },
+  { name: "Photos", folder: true },
+];
+
+let files = [];
+let nextId = 1;
+
+function splitName(file) {
+  if (file.folder) return { base: file.name, ext: "" };
+  const dot = file.name.lastIndexOf(".");
+  return dot > 0 ? { base: file.name.slice(0, dot), ext: file.name.slice(dot + 1).toLowerCase() } : { base: file.name, ext: "" };
+}
+function kindOf(file) {
+  if (file.folder) return "folder";
+  return KINDS[splitName(file).ext] || "other";
+}
+
+/** Finder-style names: "photo.jpg", then "photo 2.jpg", never replacing. */
+function nextFree(base, ext) {
+  const taken = new Set(files.map((x) => x.name.toLowerCase()));
+  const name = (b) => (ext ? `${b}.${ext}` : b);
+  if (!taken.has(name(base).toLowerCase())) return name(base);
+  for (let n = 2; ; n++) if (!taken.has(name(`${base} ${n}`).toLowerCase())) return name(`${base} ${n}`);
+}
+
+/** A conversion: `out` gives the result's base name, extension and size. */
+function conv(title, out, extra = {}) { return { type: "convert", title, out, ...extra }; }
+function group(title, members, symbol) { return members.length ? { type: "group", title, members, symbol } : null; }
+
+function archiveEntries(file) {
+  const base = file.folder ? file.name : file.name;
+  return [["ZIP", "zip"], ["TAR.GZ", "tar.gz"], ["TAR.XZ", "tar.xz"], ["7Z", "7z"], ["Apple Archive", "aar"]]
+    .map(([t, e]) => conv(t, () => ({ base, ext: e, folder: false, from: "archive" })));
+}
+
+function menusFor(file) {
+  const kind = kindOf(file);
+  const { base, ext } = splitName(file);
+  const same = (e) => e === ext || (e === "jpg" && ext === "jpeg");
+  const formats = [], tools = [];
+  const keep = (e, props = {}) => () => ({ base, ext: e, ...props });
+
+  if (kind === "image") {
+    for (const [t, e] of IMAGE_FORMATS) if (!same(e)) formats.push(conv(t, keep(e, { w: file.w, h: file.h }), { symbol: e === "pdf" ? "doc" : null }));
+    formats.push(group("More", IMAGE_MORE.filter(([, e]) => !same(e)).map(([t, e]) => conv(t, keep(e, { w: file.w, h: file.h }))), "more"));
+    const longest = Math.max(file.w, file.h);
+    const resize = [["50%", 0.5], ["25%", 0.25], ["3840 px", 3840], ["1920 px", 1920], ["1280 px", 1280], ["640 px", 640]]
+      .map(([t, v]) => {
+        const target = v < 1 ? Math.round(longest * v) : v;
+        if (target >= longest) return null;
+        const k = target / longest;
+        const label = v < 1 ? `${v * 100}%` : `${v}px`;
+        return conv(t, () => ({ base: `${base} (${label})`, ext, w: Math.round(file.w * k), h: Math.round(file.h * k) }));
+      }).filter(Boolean);
+    tools.push(group("Resize", resize, "resize"));
+    const crops = [[1, 1], [4, 3], [3, 2], [16, 9], [3, 4], [2, 3], [9, 16]].map(([a, b]) => {
+      let w = file.w, h = Math.round(file.w * b / a);
+      if (h > file.h) { h = file.h; w = Math.round(file.h * a / b); }
+      if (w === file.w && h === file.h) return null;
+      const suffix = a === b ? "square" : `${a}x${b}`;
+      return conv(a === b ? "Square" : `${a}:${b}`, () => ({ base: `${base} (${suffix})`, ext, w, h }));
+    }).filter(Boolean);
+    crops.push({ type: "editor", title: "Custom…", out: () => ({ base: `${base} (cropped)`, ext }) });
+    tools.push(group("Crop", crops, "crop"));
+    if (["jpg", "heic", "avif", "jp2"].includes(ext)) tools.push(conv("Compress", keep(ext, { base: `${base} (compressed)`, w: file.w, h: file.h }), { symbol: "compress" }));
+    tools.push(conv("Remove Metadata", keep(ext, { base: `${base} (no metadata)`, w: file.w, h: file.h }), { symbol: "eyeSlash" }));
+    tools.push(conv("Recognize Text", keep("txt", { base: `${base} (text)` }), { symbol: "text" }));
+  } else if (kind === "video") {
+    const videos = [["MP4", "mp4"], ["MP4 (HEVC)", "mp4"], ["MOV", "mov"], ["GIF", "gif"]];
+    for (const [t, e] of videos) formats.push(conv(t, keep(e, { w: file.w, h: file.h, seconds: file.seconds }), { symbol: e === "gif" ? "film" : null }));
+    formats.push(group("Audio", [["M4A", "m4a"], ["WAV", "wav"], ["AIFF", "aiff"], ["FLAC", "flac"]].map(([t, e]) => conv(t, keep(e, { seconds: file.seconds }))), "waveform"));
+    formats.push(group("More", [["MOV (ProRes)", "mov"], ["M4V", "m4v"]].map(([t, e]) => conv(t, keep(e, { w: file.w, h: file.h, seconds: file.seconds }))), "more"));
+    tools.push(conv("Save Frame", keep("png", { base: `${base} (frame)`, w: file.w, h: file.h }), { symbol: "camera" }));
+    tools.push(conv("Compress", keep("mp4", { base: `${base} (compressed)`, w: file.w, h: file.h, seconds: file.seconds }), { symbol: "compress" }));
+    const sizes = [["4K", 2160], ["1080p", 1080], ["720p", 720], ["540p", 540]].filter(([, p]) => p < Math.min(file.w, file.h));
+    tools.push(group("Resize", sizes.map(([t, p]) => conv(t, keep("mp4", { base: `${base} (${t})`, w: Math.round(file.w * p / file.h), h: p, seconds: file.seconds }))), "resize"));
+    tools.push(conv("Remove Audio", keep(ext, { base: `${base} (no audio)`, w: file.w, h: file.h, seconds: file.seconds }), { symbol: "speakerSlash" }));
+  } else if (kind === "audio") {
+    const audio = [["M4A", "m4a"], ["M4A Lossless", "m4a"], ["WAV", "wav"], ["AIFF", "aiff"], ["FLAC", "flac"]];
+    for (const [t, e] of audio) if (!same(e)) formats.push(conv(t, keep(e, { seconds: file.seconds })));
+    formats.push(group("More", [["AAC", "aac"], ["CAF", "caf"]].filter(([, e]) => !same(e)).map(([t, e]) => conv(t, keep(e, { seconds: file.seconds }))), "more"));
+  } else if (kind === "pdf") {
+    formats.push(conv("Plain Text", keep("txt")));
+    formats.push(conv("PNG", keep("png")));
+    formats.push(conv("JPEG", keep("jpg")));
+    formats.push(group("More", [conv("HEIC", keep("heic")), conv("TIFF", keep("tiff"))], "more"));
+    if ((file.pages || 1) > 1) tools.push(conv("Split Pages", () => ({ base: `${base} (split)`, ext: "", folder: true }), { symbol: "doc" }));
+    tools.push(conv("Compress", keep("pdf", { base: `${base} (compressed)`, pages: file.pages }), { symbol: "compress" }));
+    tools.push(conv("Recognize Text", keep("txt", { base: `${base} (text)` }), { symbol: "text" }));
+  } else if (kind === "doc") {
+    const docs = [["Plain Text", "txt"], ["RTF", "rtf"], ["HTML", "html"], ["Word", "docx"], ["PDF", "pdf"]];
+    for (const [t, e] of docs) if (!same(e)) formats.push(conv(t, keep(e), { symbol: e === "pdf" ? "doc" : null }));
+    formats.push(group("More", [["Word 97", "doc"], ["OpenDocument", "odt"]].filter(([, e]) => !same(e)).map(([t, e]) => conv(t, keep(e))), "more"));
+  } else if (kind === "archive") {
+    tools.push(conv("Extract", () => ({ base: base.replace(/\.tar$/, ""), ext: "", folder: true }), { symbol: "archive" }));
+  }
+
+  const archive = archiveEntries(file);
+  if (kind === "folder") tools.push(...archive); // only one group: shown directly, as in the app
+  else if (kind !== "archive") tools.push(group("Archive", archive, "archive"));
+
+  const share = ["AirDrop", "Mail", "Messages", "Notes"].map((t) => ({ type: "action", title: t, act: "share" }));
+  if (kind === "image" || kind === "video") share.push({ type: "action", title: "Photos", act: "share" });
+  share.push({ type: "action", title: "More…", act: "shareMore" });
+  const actions = [
+    group("Share", share, "share"),
+    { type: "action", title: "Metadata", act: "metadata", symbol: "info" },
+    { type: "action", title: "Float", act: "float", symbol: "tray" },
+    { type: "action", title: "Copy", act: "copy", symbol: "copy" },
+    { type: "action", title: "Move…", act: "move", symbol: "folder" },
+    { type: "action", title: "Copy Path", act: "copyPath", symbol: "link" },
+    { type: "action", title: "Terminal", act: "terminal", symbol: "terminal" },
+  ];
+  return { formats: formats.filter(Boolean), tools: tools.filter(Boolean), actions };
+}
+
+// ---- The Finder window ---------------------------------------------------
+const filesEl = document.getElementById("files");
+
+function iconHTML(file) {
+  const kind = kindOf(file);
+  const { ext } = splitName(file);
+  if (kind === "folder") return `<div class="icon"><div class="folder"></div></div>`;
+  if (kind === "image") {
+    const shape = file.w === file.h ? " square" : file.h > file.w ? " tall" : "";
+    return `<div class="icon"><div class="photo${shape}"></div></div>`;
+  }
+  if (kind === "video") return `<div class="icon"><div class="movie"></div></div>`;
+  if (kind === "archive" || file.name.endsWith(".zip") || file.name.endsWith(".aar")) return `<div class="icon"><div class="box"></div></div>`;
+  const colors = { pdf: "#e5483d", docx: "#2f6fd6", doc: "#2f6fd6", odt: "#2f6fd6", txt: "#7a7a80", rtf: "#7a7a80",
+                   html: "#e0782f", aiff: "#ef3f6c", wav: "#ef3f6c", m4a: "#ef3f6c", flac: "#ef3f6c", aac: "#ef3f6c", caf: "#ef3f6c" };
+  return `<div class="icon"><div class="page"><b style="background:${colors[ext] || "#7a7a80"}">${(ext || "file").toUpperCase()}</b></div></div>`;
+}
+
+function renderFiles() {
+  filesEl.innerHTML = "";
+  for (const file of files) {
+    const el = document.createElement("div");
+    el.className = "file" + (file.isNew ? " new" : "") + (file.id === selectedId ? " selected" : "");
+    el.tabIndex = 0;
+    el.dataset.id = file.id;
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", `${file.name}. Drag it and tap a key, or press Enter to open the wheel.`);
+    el.innerHTML = iconHTML(file) + `<div class="name">${escapeHTML(file.name)}</div>` +
+      (file.progress != null ? `<div class="progress"><div style="width:${Math.round(file.progress * 100)}%"></div></div>` : "");
+    filesEl.appendChild(el);
+  }
+}
+
+function escapeHTML(s) {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function resetFiles() {
+  files = START_FILES.map((x) => ({ ...x, id: nextId++ }));
+  selectedId = null;
+  renderFiles();
+  shelfItems.length = 0;
+  renderShelf();
+}
+
+// ---- The wheel -------------------------------------------------------------
+const wheelEl = document.getElementById("wheel");
+const svg = document.getElementById("svg");
+const bandEl = document.getElementById("band");
+const switcher = document.getElementById("switcher");
+const measure = document.createElement("canvas").getContext("2d");
+const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif';
+
+let wheel = null;  // { file, menus, mode, x, y, scale, hit, openGroup, how, dwell }
+let drag = null;   // { file, startX, startY, x, y, moved, held: Set, pointerType }
+let selectedId = null;
+
+function slicesOf(w) { return w.menus[w.mode]; }
+
+function textWidth(text, size, weight) {
+  measure.font = `${weight} ${size}px ${FONT}`;
+  return measure.measureText(text).width;
+}
+
+/** Lines of a label, wrapped between words only (never inside a word). */
+function wrap(text, width, size, weight) {
+  const words = text.split(" ");
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const tryLine = line ? `${line} ${word}` : word;
+    if (line && textWidth(tryLine, size, weight) > width) { lines.push(line); line = word; } else line = tryLine;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** Shrinks, then shortens in the middle: the app's centre caption rule. */
+function fit(text, width, size, minimum, weight) {
+  const widest = (t, s) => Math.max(...t.split(" ").map((w) => textWidth(w, s, weight)));
+  while (size > minimum && widest(text, size) > width) size -= 0.5;
+  if (widest(text, size) <= width) return { text, size };
+  const words = text.split(" ").map((word) => {
+    if (textWidth(word, size, weight) <= width) return word;
+    const chars = [...word];
+    for (let removed = 1; removed < chars.length - 2; removed++) {
+      const kept = chars.length - removed;
+      const candidate = chars.slice(0, kept - Math.floor(kept / 2)).join("") + "…" + chars.slice(chars.length - Math.floor(kept / 2)).join("");
+      if (textWidth(candidate, size, weight) <= width) return candidate;
+    }
+    return word;
+  });
+  return { text: words.join(" "), size };
+}
+
+function target(w) {
+  const slices = slicesOf(w);
+  if (!w.hit) return null;
+  if (w.hit.kind === "slice") return slices[w.hit.index].type === "group" ? null : slices[w.hit.index];
+  if (w.hit.kind === "sub" && w.openGroup != null) return slices[w.openGroup].members[w.hit.index] || null;
+  return null;
+}
+
+function outputName(file, entry) {
+  const out = entry.out(file);
+  return nextFree(out.base, out.ext);
+}
+
+function caption(w) {
+  const slices = slicesOf(w);
+  if (w.hit && w.hit.kind === "center") return ["Cancel", null];
+  if (!slices.length) return [w.mode === "formats" ? "No formats for this" : w.mode === "tools" ? "No tools for this" : "No actions", "Scroll for more"];
+  const t = target(w);
+  if (t && t.type === "action") return [t.act === "shareMore" ? "Share…" : t.title, w.file.name];
+  if (t) return [t.title, outputName(w.file, t)];
+  if (w.hit && w.hit.kind === "slice") return [slices[w.hit.index].title, null];
+  return [w.file.name, null];
+}
+
+function symbolSVG(name, x, y, color) {
+  const d = SYMBOLS[name];
+  if (!d) return "";
+  return `<path d="${d}" transform="translate(${f(x - 8)},${f(y - 8)}) scale(0.667)" fill="none" style="stroke:${color}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+function labelSVG(text, symbol, chevron, x, y, width, onAccent, size) {
+  const color = onAccent ? "#fff" : "var(--text)";
+  const weight = 600;
+  const label = text + (chevron ? " ›" : "");
+  const longestWord = Math.max(...label.split(" ").map((w) => textWidth(w, size, weight)));
+  const lines = wrap(label, Math.max(width, longestWord), size, weight);
+  const lineHeight = size * 1.2;
+  const symbolHeight = symbol ? 16 + 4 : 0;
+  let top = y - (symbolHeight + lines.length * lineHeight) / 2;
+  let out = "";
+  if (symbol) { out += symbolSVG(symbol, x, top + 8, color); top += symbolHeight; }
+  lines.forEach((line, i) => {
+    out += `<text x="${f(x)}" y="${f(top + lineHeight * (i + 0.78))}" text-anchor="middle" font-size="${size}" font-weight="${weight}" style="fill:${color}">${escapeHTML(line)}</text>`;
+  });
+  return out;
+}
+
+function renderWheel() {
+  if (!wheel) return;
+  const w = wheel;
+  const slices = slicesOf(w);
+  const count = slices.length;
+  const s = span(count);
+  const accent = "var(--accent)";
+  const divider = "rgba(var(--primary-rgb), 0.12)";
+  let out = `<g class="content" font-family='${FONT}'>`;
+
+  slices.forEach((slice, i) => {
+    const mid = i * s;
+    const isHit = w.hit && w.hit.kind === "slice" && w.hit.index === i;
+    const isOpen = w.openGroup === i;
+    if (isHit || isOpen) {
+      const inset = 4, ai = inset / ((G.inner + G.outer) / 2);
+      out += `<path d="${band(G.inner + inset, G.outer - inset, mid - s / 2 + ai, mid + s / 2 - ai, 12)}" style="fill:${accent}" ${isHit && slice.type !== "group" ? "" : 'fill-opacity="0.28"'}/>`;
+    }
+    if (count > 1) {
+      const [x1, y1] = pt(mid - s / 2, G.inner + 10), [x2, y2] = pt(mid - s / 2, G.outer - 10);
+      out += `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" style="stroke:${divider}"/>`;
+    }
+    const labelR = (G.inner + G.outer) / 2;
+    const [lx, ly] = pt(mid, labelR);
+    out += labelSVG(slice.title, slice.symbol, slice.type === "group", lx, ly, Math.min(92, s * labelR - 4),
+                    isHit && slice.type !== "group", count > 10 ? 11 : 11.5);
+  });
+
+  // The open group's sub-ring.
+  let bandPath = "";
+  if (w.openGroup != null && slices[w.openGroup]) {
+    const members = slices[w.openGroup].members;
+    const ss = subSpan(members.length);
+    const first = subCenter(0, members.length, w.openGroup, count) - ss / 2;
+    bandPath = band(G.subInner, G.subOuter, first, first + ss * members.length, 16);
+    const labelR = (G.subInner + G.subOuter) / 2;
+    members.forEach((m, i) => {
+      const mid = subCenter(i, members.length, w.openGroup, count);
+      const isHit = w.hit && w.hit.kind === "sub" && w.hit.index === i;
+      if (isHit) {
+        const inset = 4, ai = inset / labelR;
+        out += `<path d="${band(G.subInner + inset, G.subOuter - inset, mid - ss / 2 + ai, mid + ss / 2 - ai, 12)}" style="fill:${accent}"/>`;
+      }
+      const [lx, ly] = pt(mid, labelR);
+      out += labelSVG(m.title, null, false, lx, ly, ss * labelR - 4, isHit, 11.5);
+    });
+  }
+  bandEl.style.clipPath = bandPath ? `path("${bandPath}")` : "circle(0px)";
+  bandEl.style.opacity = bandPath ? "1" : "0";
+
+  // The middle: ring name and key, what a drop would do, three dots.
+  const r = G.inner - G.gap;
+  const cancelling = w.hit && w.hit.kind === "center";
+  out += `<circle cx="${C}" cy="${C}" r="${r}" style="fill:rgba(var(--primary-rgb), ${cancelling ? 0.14 : 0.05});stroke:${divider}"/>`;
+  const ring = RINGS[w.mode];
+  out += `<text x="${C}" y="${C - r + 16}" text-anchor="middle" font-size="8.5" font-weight="700" letter-spacing="0.8" style="fill:var(--secondary)">${ring.key} ${ring.title.toUpperCase()}</text>`;
+  WHEEL_ORDER.forEach((mode, i) => {
+    out += `<circle cx="${C + (i - 1) * 9}" cy="${C + r - 12.5}" r="2.5" style="fill:${mode === w.mode ? accent : "rgba(var(--primary-rgb), 0.25)"}"/>`;
+  });
+  const [title, detail] = caption(w);
+  const box = 2 * r - 16;
+  const t = fit(title, box, 12, 9.5, 600);
+  const lines = wrap(t.text, box, t.size, 600);
+  let detailLines = [];
+  let d = null;
+  if (detail) { d = fit(detail, box, 10, 8.5, 400); detailLines = wrap(d.text, box, d.size, 400); }
+  const height = lines.length * t.size * 1.2 + (d ? detailLines.length * d.size * 1.25 + 2 : 0);
+  let y = C + 2 - height / 2;
+  for (const line of lines) {
+    y += t.size * 1.2;
+    out += `<text x="${C}" y="${f(y - t.size * 0.25)}" text-anchor="middle" font-size="${t.size}" font-weight="600" style="fill:var(--text)">${escapeHTML(line)}</text>`;
+  }
+  if (d) {
+    y += 2;
+    for (const line of detailLines) {
+      y += d.size * 1.25;
+      out += `<text x="${C}" y="${f(y - d.size * 0.3)}" text-anchor="middle" font-size="${d.size}" style="fill:var(--secondary)">${escapeHTML(line)}</text>`;
+    }
+  }
+  out += "</g>";
+  svg.innerHTML = out;
+  wheelEl.setAttribute("aria-label", `${ring.title} wheel: ${title}`);
+  switcher.querySelectorAll("button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === w.mode)));
+}
+
+function wheelScale() {
+  return Math.min(1, (window.innerWidth - 16) / SIDE, (window.innerHeight - 16) / SIDE);
+}
+
+function openWheel(file, mode, x, y, how) {
+  const scale = wheelScale();
+  const half = (SIDE / 2) * scale;
+  // Keep the whole wheel on screen.
+  const cx = Math.min(Math.max(x, half * 0.72), window.innerWidth - half * 0.72);
+  const cy = Math.min(Math.max(y, half * 0.72), window.innerHeight - half * 0.72);
+  wheel = { file, menus: menusFor(file), mode, x: cx, y: cy, scale, hit: null, openGroup: null, how, dwell: null };
+  wheelEl.style.left = `${cx}px`;
+  wheelEl.style.top = `${cy}px`;
+  wheelEl.style.setProperty("--s", scale);
+  wheelEl.classList.toggle("tap", how === "tap");
+  wheelEl.setAttribute("aria-hidden", "false");
+  switcher.classList.toggle("shown", how === "tap");
+  renderWheel();
+  requestAnimationFrame(() => wheelEl.classList.add("open"));
+}
+
+function closeWheel() {
+  if (!wheel) return;
+  clearTimeout(wheel.dwell);
+  wheel = null;
+  wheelEl.classList.remove("open", "tap");
+  wheelEl.setAttribute("aria-hidden", "true");
+  switcher.classList.remove("shown");
+}
+
+function setMode(mode) {
+  if (!wheel || wheel.mode === mode) return;
+  const content = svg.querySelector(".content");
+  if (content) content.classList.add("fading");
+  setTimeout(() => {
+    if (!wheel) return;
+    wheel.mode = mode;
+    wheel.hit = null;
+    wheel.openGroup = null;
+    clearTimeout(wheel.dwell);
+    renderWheel();
+  }, 90);
+}
+
+/** Pointer moved: update what's under it, and open a group after a dwell. */
+function hover(clientX, clientY) {
+  const w = wheel;
+  if (!w) return;
+  const x = (clientX - w.x) / w.scale, y = (w.y - clientY) / w.scale;
+  const slices = slicesOf(w);
+  const open = w.openGroup != null ? { parent: w.openGroup, members: slices[w.openGroup].members.length } : null;
+  const hit = hitTest(x, y, slices.length, open);
+  const same = w.hit && hit.kind === w.hit.kind && hit.index === w.hit.index;
+  if (same) return;
+  w.hit = hit;
+  if (hit.kind === "slice" && hit.index !== w.openGroup) w.openGroup = null;
+  if (hit.kind === "center") w.openGroup = null;
+  clearTimeout(w.dwell);
+  if (hit.kind === "slice" && slices[hit.index].type === "group" && hit.index !== w.openGroup) {
+    const index = hit.index;
+    w.dwell = setTimeout(() => {
+      if (wheel === w && w.hit && w.hit.kind === "slice" && w.hit.index === index) { w.openGroup = index; renderWheel(); }
+    }, DWELL);
+  }
+  renderWheel();
+}
+
+/** A drop or a tap on the wheel. */
+function choose(clientX, clientY) {
+  const w = wheel;
+  if (!w) return;
+  hover(clientX, clientY);
+  const slices = slicesOf(w);
+  if (w.how === "tap" && w.hit && w.hit.kind === "slice" && slices[w.hit.index].type === "group") {
+    clearTimeout(w.dwell);
+    w.openGroup = w.hit.index;
+    renderWheel();
+    return;
+  }
+  const t = target(w);
+  const file = w.file;
+  closeWheel();
+  if (!t) { toast("Cancelled. Nothing changed."); return; }
+  run(file, t);
+}
+
+// ---- What a choice does -----------------------------------------------------
+function run(file, entry) {
+  if (entry.type === "editor") { showCropEditor(file); return; }
+  if (entry.type === "action") { act(file, entry); return; }
+  const out = entry.out(file);
+  const name = nextFree(out.base, out.ext);
+  const created = { name, id: nextId++, isNew: true, progress: 0, folder: !!out.folder,
+                    w: out.w, h: out.h, seconds: out.seconds, pages: out.pages, size: file.size };
+  const index = files.findIndex((x) => x.id === file.id);
+  files.splice(index + 1, 0, created);
+  renderFiles();
+  const kind = kindOf(file);
+  const duration = kind === "video" ? 2200 : kind === "folder" ? 1200 : 900;
+  const start = performance.now();
+  const step = (now) => {
+    created.progress = Math.min(1, (now - start) / duration);
+    if (created.progress < 1) { updateProgress(created); requestAnimationFrame(step); return; }
+    created.progress = null;
+    renderFiles();
+    toast(`Saved “${name}” next to the original.`);
+    setTimeout(() => { created.isNew = false; renderFiles(); }, 2500);
+  };
+  requestAnimationFrame(step);
+}
+
+function updateProgress(file) {
+  const bar = filesEl.querySelector(`[data-id="${file.id}"] .progress div`);
+  if (bar) bar.style.width = `${Math.round(file.progress * 100)}%`;
+}
+
+function act(file, entry) {
+  const name = `“${file.name}”`;
+  switch (entry.act) {
+    case "share": toast(entry.title === "AirDrop" ? `AirDrop opens, ready to send ${name}.` : `${entry.title} opens with ${name} attached.`); break;
+    case "shareMore": toast(`The system share sheet opens for ${name}, with every app that can take it.`); break;
+    case "metadata": showMetadata(file); break;
+    case "float": shelfItems.includes(file.name) || shelfItems.push(file.name); renderShelf(); break;
+    case "copy": toast(`Copied ${name}. Paste it in a Finder window to copy the file.`); break;
+    case "move": toast(`A folder picker opens; ${name} moves there and is never replaced.`); break;
+    case "copyPath": toast(`Copied /Users/you/Pictures/${file.name}`); break;
+    case "terminal": toast("Terminal opens in ~/Pictures."); break;
+  }
+}
+
+const toastsEl = document.getElementById("toasts");
+function toast(text) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = text;
+  toastsEl.appendChild(el);
+  while (toastsEl.children.length > 3) toastsEl.firstChild.remove();
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 400); }, 3200);
+}
+
+const shelfEl = document.getElementById("shelf");
+const shelfItems = [];
+function renderShelf() {
+  shelfEl.classList.toggle("shown", shelfItems.length > 0);
+  document.getElementById("shelf-items").innerHTML = shelfItems.map((n) => `<li>${escapeHTML(n)}</li>`).join("");
+}
+document.getElementById("shelf-close").addEventListener("click", () => { shelfItems.length = 0; renderShelf(); });
+
+const dialog = document.getElementById("dialog");
+document.getElementById("dialog-close").addEventListener("click", () => dialog.close());
+
+function bytes(n) {
+  if (!n) return "—";
+  const units = ["bytes", "KB", "MB", "GB"];
+  let i = 0;
+  while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+  return `${i ? n.toFixed(1).replace(/\.0$/, "") : n} ${units[i]}`;
+}
+function duration(s) { s = Math.round(s || 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
+
+function showMetadata(file) {
+  const kind = kindOf(file);
+  const { ext } = splitName(file);
+  const sections = [["File", [["Kind", file.folder ? "Folder" : KIND_NAMES[ext] || "Document"],
+                              file.folder ? ["Contents", "24 items"] : ["Size", bytes(file.size)],
+                              ["Where", "~/Pictures"]]]];
+  if (kind === "image") {
+    sections.push(["Image", [["Dimensions", `${file.w} × ${file.h} pixels`], ["Colour Profile", "Display P3"], ["Depth", "8 bits per channel"]]]);
+    if (file.name.startsWith("IMG_2041") && !file.name.includes("no metadata")) {
+      sections.push(["Camera", [["Make", "Apple"], ["Model", "iPhone 17 Pro"], ["Focal Length", "6.86 mm (24 mm in 35 mm terms)"],
+                                ["Aperture", "f/1.78"], ["Exposure", "1/120 s"], ["ISO", "ISO 80"], ["Taken", "14 Jun 2026 at 19:42"]]]);
+      sections.push(["Location", [["Coordinates", "51.500728, -0.124625"], ["Altitude", "12 m"]]]);
+    }
+  } else if (kind === "video") {
+    sections.push(["Media", [["Duration", duration(file.seconds)]]]);
+    sections.push(["Video", [["Dimensions", `${file.w} × ${file.h} pixels`], ["Codec", ext === "mov" ? "HEVC" : "H.264"], ["Frame Rate", "30 fps"]]]);
+    sections.push(["Audio", [["Codec", "AAC"], ["Sample Rate", "48 kHz"], ["Channels", "Stereo"]]]);
+  } else if (kind === "audio") {
+    sections.push(["Media", [["Duration", duration(file.seconds)]]]);
+    sections.push(["Audio", [["Codec", ext === "aiff" || ext === "wav" ? "PCM" : ext === "flac" ? "FLAC" : "AAC"], ["Sample Rate", "44.1 kHz"], ["Channels", "Mono"]]]);
+  } else if (kind === "pdf") {
+    sections.push(["PDF", [["Pages", String(file.pages || 1)], ["Page Size", "210 × 297 mm"], ["Author", "Sam"], ["Security", "None"]]]);
+  }
+  document.getElementById("dialog-title").textContent = `${file.name} · Metadata`;
+  document.getElementById("dialog-body").innerHTML = sections.map(([title, rows]) =>
+    `<h3>${title}</h3><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${escapeHTML(v)}</dd></div>`).join("")}</dl>`).join("") +
+    (sections.some(([t]) => t === "Camera") ? `<p style="color:var(--secondary);font-size:13px">In the app, <b>Remove Metadata</b> saves a copy without the camera and location tags.</p>` : "");
+  dialog.showModal();
+}
+
+function showCropEditor(file) {
+  const dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light"
+               || document.documentElement.dataset.theme === "dark";
+  document.getElementById("dialog-title").textContent = `Crop “${file.name}”`;
+  document.getElementById("dialog-body").innerHTML =
+    `<p style="margin:8px 0 12px;color:var(--secondary);font-size:13px">In the app, Custom… opens the crop editor: drag the handles, choose a shape, or type an exact size.</p>` +
+    `<img src="images/crop-editor.${dark ? "dark" : "light"}.png" alt="The crop editor, with a 4:3 crop over a landscape photo">`;
+  dialog.style.width = "min(760px, calc(100% - 32px))";
+  dialog.showModal();
+  dialog.addEventListener("close", () => { dialog.style.width = ""; }, { once: true });
+}
+
+// ---- Input -------------------------------------------------------------------
+const KEY_MODES = { Shift: "formats", Meta: "tools", Alt: "tools", Control: "actions" };
+
+filesEl.addEventListener("pointerdown", (event) => {
+  const el = event.target.closest(".file");
+  if (!el || event.button !== 0) return;
+  const file = files.find((x) => String(x.id) === el.dataset.id);
+  if (!file || file.progress != null) return;
+  selectedId = file.id;
+  filesEl.querySelectorAll(".file").forEach((x) => x.classList.toggle("selected", x === el));
+  const held = new Set();
+  if (event.shiftKey) held.add("Shift");
+  if (event.metaKey) held.add("Meta");
+  if (event.altKey) held.add("Alt");
+  if (event.ctrlKey) held.add("Control");
+  drag = { file, el, startX: event.clientX, startY: event.clientY, moved: false, held, pointerType: event.pointerType };
+  if (event.pointerType === "mouse") event.preventDefault();
+});
+
+const ghost = document.createElement("div");
+ghost.className = "ghost";
+document.body.appendChild(ghost);
+
+window.addEventListener("pointermove", (event) => {
+  if (drag && drag.pointerType === "mouse") {
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 4) {
+      drag.moved = true;
+      ghost.innerHTML = iconHTML(drag.file);
+      ghost.style.display = "block";
+      document.body.style.cursor = "grabbing";
+    }
+    if (drag.moved) {
+      ghost.style.left = `${event.clientX}px`;
+      ghost.style.top = `${event.clientY}px`;
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+    }
+  }
+  if (wheel && (wheel.how === "drag" || event.pointerType === "mouse")) hover(event.clientX, event.clientY);
+});
+
+window.addEventListener("pointerup", (event) => {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  ghost.style.display = "none";
+  document.body.style.cursor = "";
+  if (wheel && wheel.how === "drag") { choose(event.clientX, event.clientY); return; }
+  if (!d.moved) {
+    // A tap: open the wheel over the file, with buttons to switch rings.
+    const rect = d.el.getBoundingClientRect();
+    if (wheel) closeWheel();
+    openWheel(d.file, "formats", rect.left + rect.width / 2, rect.top + rect.height / 2, "tap");
+  } else {
+    toast("Tip: tap ⇧, ⌘ or ⌃ while you drag to open the wheel.");
+  }
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && wheel) { closeWheel(); toast("Cancelled. Nothing changed."); return; }
+  if (event.key === "Enter" && !wheel && document.activeElement && document.activeElement.classList.contains("file")) {
+    const file = files.find((x) => String(x.id) === document.activeElement.dataset.id);
+    const rect = document.activeElement.getBoundingClientRect();
+    if (file && file.progress == null) openWheel(file, "formats", rect.left + rect.width / 2, rect.top + rect.height / 2, "tap");
+    return;
+  }
+  const mode = KEY_MODES[event.key];
+  if (!mode || event.repeat) return;
+  if (drag && drag.held.has(event.key)) return; // held when the drag started: doesn't count
+  if (wheel) { setMode(mode); return; }
+  if (drag && drag.moved) openWheel(drag.file, mode, drag.x, drag.y, "drag");
+});
+window.addEventListener("keyup", (event) => { if (drag) drag.held.delete(event.key); });
+window.addEventListener("contextmenu", (event) => { if (drag || wheel) event.preventDefault(); });
+window.addEventListener("blur", () => { if (wheel && wheel.how === "drag") closeWheel(); drag = null; ghost.style.display = "none"; });
+
+// Scrolling switches rings: up goes to the next one (Actions → Tools → Convert).
+let scrollSum = 0, scrollSwitched = false, scrollIdle = null, lastNotch = 0;
+window.addEventListener("wheel", (event) => {
+  if (!wheel) return;
+  event.preventDefault();
+  const next = (steps) => setMode(WHEEL_ORDER[(WHEEL_ORDER.indexOf(wheel.mode) + steps + 3) % 3]);
+  const notch = event.deltaMode !== 0 || Math.abs(event.deltaY) >= 50;
+  if (notch) {
+    const now = performance.now();
+    if (now - lastNotch < 200 || event.deltaY === 0) return;
+    lastNotch = now;
+    next(event.deltaY < 0 ? 1 : -1);
+    return;
+  }
+  clearTimeout(scrollIdle);
+  scrollIdle = setTimeout(() => { scrollSum = 0; scrollSwitched = false; }, 180);
+  if (scrollSwitched) return;
+  scrollSum += event.deltaY;
+  if (Math.abs(scrollSum) < 24) return;
+  scrollSwitched = true;
+  next(scrollSum < 0 ? 1 : -1);
+}, { passive: false });
+
+// Tap mode: tap slices; the buttons switch rings.
+wheelEl.addEventListener("click", (event) => { if (wheel && wheel.how === "tap") choose(event.clientX, event.clientY); });
+switcher.addEventListener("click", (event) => {
+  const b = event.target.closest("button");
+  if (!b || !wheel) return;
+  if (b.dataset.mode === "cancel") { closeWheel(); toast("Cancelled. Nothing changed."); return; }
+  setMode(b.dataset.mode);
+});
+document.addEventListener("pointerdown", (event) => {
+  if (wheel && wheel.how === "tap" && !wheelEl.contains(event.target) && !switcher.contains(event.target) && !event.target.closest(".file")) {
+    closeWheel();
+  }
+});
+window.addEventListener("resize", () => { if (wheel) closeWheel(); });
+
+document.getElementById("reset").addEventListener("click", resetFiles);
+document.getElementById("theme").addEventListener("click", () => {
+  const root = document.documentElement;
+  const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+  const current = root.dataset.theme || (systemDark ? "dark" : "light");
+  root.dataset.theme = current === "dark" ? "light" : "dark";
+  if (wheel) renderWheel();
+});
+
+if (!/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) {
+  document.getElementById("steps").children[1].innerHTML =
+    "<b>2.</b> Tap <kbd>⇧ Shift</kbd> Convert, <kbd>Alt</kbd> Tools or <kbd>Ctrl</kbd> Actions";
+}
+
+resetFiles();
+</script>
+</body>
+</html>

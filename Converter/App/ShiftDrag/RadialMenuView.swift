@@ -133,15 +133,45 @@ struct RadialMenuView: View {
         }
 
         let caption = model.caption
-        var text = Text(caption.title).font(.system(size: 12, weight: .semibold))
-        if let detail = caption.detail {
-            text = text + Text("\n" + detail).font(.system(size: 10)).foregroundColor(.secondary)
-        }
         let box = CGRect(x: center.x - r + 8, y: center.y - r + 20, width: 2 * r - 16, height: 2 * r - 40)
+        let title = Self.fit(caption.title, width: box.width, size: 12, minimum: 9.5, weight: .semibold, in: context)
+        var text = Text(title.string).font(.system(size: title.size, weight: .semibold))
+        if let detail = caption.detail {
+            let fitted = Self.fit(detail, width: box.width, size: 10, minimum: 8.5, weight: .regular, in: context)
+            text = text + Text("\n" + fitted.string).font(.system(size: fitted.size)).foregroundColor(.secondary)
+        }
         let resolved = context.resolve(text.foregroundColor(.primary))
         let size = resolved.measure(in: box.size)
         context.draw(resolved, in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2,
                                           width: size.width, height: size.height))
+    }
+
+    /// The largest size from `size` down to `minimum` at which every word of
+    /// `string` fits `width`, so lines only break between words. A word
+    /// that still doesn't fit is shortened in the middle ("IMG_20…41.heic").
+    static func fit(_ string: String, width: CGFloat, size: CGFloat, minimum: CGFloat, weight: Font.Weight,
+                    in context: GraphicsContext) -> (string: String, size: CGFloat) {
+        func wordWidth(_ word: String, _ size: CGFloat) -> CGFloat {
+            context.resolve(Text(word).font(.system(size: size, weight: weight)))
+                .measure(in: CGSize(width: 2000, height: 100)).width
+        }
+        func widest(_ text: String, _ size: CGFloat) -> CGFloat {
+            text.split(separator: " ").map { wordWidth(String($0), size) }.max() ?? 0
+        }
+        var size = size
+        while size > minimum && widest(string, size) > width { size -= 0.5 }
+        guard widest(string, size) > width else { return (string, size) }
+        let words = string.split(separator: " ", omittingEmptySubsequences: false).map { word -> String in
+            let characters = Array(word)
+            guard wordWidth(String(word), size) > width else { return String(word) }
+            for removed in 1..<max(characters.count - 2, 2) {
+                let kept = characters.count - removed
+                let candidate = String(characters.prefix(kept - kept / 2)) + "…" + String(characters.suffix(kept / 2))
+                if wordWidth(candidate, size) <= width { return candidate }
+            }
+            return String(word)
+        }
+        return (words.joined(separator: " "), size)
     }
 
     // MARK: - Labels
