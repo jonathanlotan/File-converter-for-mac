@@ -44,7 +44,11 @@ final class RichTextPDFTests: XCTestCase {
         let output = try await JobRunner.run(RichTextPDFConverter(), on: try await document("rtf", text: body))
         let pdf = try XCTUnwrap(PDFDocument(url: output))
         XCTAssertGreaterThan(pdf.pageCount, 5)
-        XCTAssertTrue(pdf.page(at: pdf.pageCount - 1)?.string?.contains("Paragraph 60.") ?? false, "nothing lost at the end")
+        // Page breaks depend on the paper size (A4 or US Letter, from the
+        // region), so check the whole text and how the last page ends.
+        XCTAssertTrue(pdf.string?.contains("Paragraph 60.") ?? false, "the last paragraph is missing")
+        let lastPage = pdf.page(at: pdf.pageCount - 1)?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        XCTAssertTrue(lastPage.hasSuffix("adipiscing elit."), "nothing lost at the end: …\(lastPage.suffix(80))")
     }
 
     func testTheAppRegistryOffersPDFForDocuments() async throws {

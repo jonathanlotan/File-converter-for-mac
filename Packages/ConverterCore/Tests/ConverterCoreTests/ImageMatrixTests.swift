@@ -107,7 +107,12 @@ final class ImageMatrixTests: XCTestCase {
         let count = CGImageSourceGetCount(source)
         let sizes = (0..<count).map { index -> (Int, Int) in
             let p = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any] ?? [:]
-            return ((p[kCGImagePropertyPixelWidth] as? Int) ?? 0, (p[kCGImagePropertyPixelHeight] as? Int) ?? 0)
+            if let w = p[kCGImagePropertyPixelWidth] as? Int, let h = p[kCGImagePropertyPixelHeight] as? Int, w > 0, h > 0 {
+                return (w, h)
+            }
+            // macOS 15 leaves the size out of a 1×1 PSD's properties; measure the decoded image.
+            let image = CGImageSourceCreateImageAtIndex(source, index, nil)
+            return (image?.width ?? 0, image?.height ?? 0)
         }
 
         if case .icon(let standardSizes) = format.writer {
