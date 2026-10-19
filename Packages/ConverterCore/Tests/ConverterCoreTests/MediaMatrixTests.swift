@@ -74,7 +74,7 @@ final class MediaMatrixTests: XCTestCase {
     /// checked on suitable input in the behaviour tests.
     static func mayDecline(_ converter: any Converter, _ sample: SampleFile) -> Bool {
         converter is ResizeVideoConverter || converter is CompressVideoConverter || converter is CompressPDFConverter
-            || (converter is RemoveAudioConverter && !sample.hasAudio)
+            || converter is CompressAudioConverter || (converter is RemoveAudioConverter && !sample.hasAudio)
     }
 
     // MARK: - Checks
@@ -101,6 +101,12 @@ final class MediaMatrixTests: XCTestCase {
             var silent = sample
             silent.hasAudio = false
             return try await checkVideo(output, from: silent, codec: "avc1")
+        case is RemoveVideoMetadataConverter:
+            return try await checkVideo(output, from: sample, codec: "avc1")
+        case is RemovePDFMetadataConverter:
+            return PDFFiles.pageCount(output) == sample.pages ? [] : ["page count changed"]
+        case is CompressAudioConverter:
+            return try await checkAudio(output, from: sample, format: .m4a)
         case is SplitPDFConverter:
             let names = (try? FileManager.default.contentsOfDirectory(atPath: output.path).sorted()) ?? []
             let pages = names.map { PDFFiles.pageCount(output.appendingPathComponent($0)) }

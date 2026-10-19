@@ -223,8 +223,8 @@ final class RadialMenuModel: ObservableObject {
 
     private static func symbol(for converter: any Converter) -> String? {
         switch converter.id {
-        case "image.compress", "video.compress", "pdf.compress": return "arrow.down.right.and.arrow.up.left"
-        case "image.stripMetadata": return "eye.slash"
+        case "image.compress", "video.compress", "audio.compress", "pdf.compress": return "arrow.down.right.and.arrow.up.left"
+        case "image.stripMetadata", "video.stripMetadata", "pdf.stripMetadata": return "eye.slash"
         case let id where id.hasPrefix("image.crop."): return "crop"
         case "ocr.text": return "text.viewfinder"
         case "video.removeAudio": return "speaker.slash"

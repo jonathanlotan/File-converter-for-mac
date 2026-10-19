@@ -211,6 +211,7 @@ public enum MediaConverters {
         + [AudioFormat.m4a, .wav, .aiff, .flac].map { AudioConverter($0, from: .video) as any Converter }
         + [VideoFrameConverter() as any Converter, CompressVideoConverter() as any Converter]
         + ResizeVideoConverter.presets.map { $0 as any Converter }
-        + [RemoveAudioConverter() as any Converter]
+        + [RemoveAudioConverter() as any Converter, RemoveVideoMetadataConverter() as any Converter]
         + AudioFormat.all.map { AudioConverter($0, from: .audio) as any Converter }
+        + [CompressAudioConverter() as any Converter]
 }

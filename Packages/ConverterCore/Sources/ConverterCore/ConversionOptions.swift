@@ -11,6 +11,8 @@ public struct ConversionOptions: Sendable, Hashable, Codable {
     public var keepMetadata: Bool
     /// AAC bit rate for stereo, in kbit/s (mono uses half).
     public var audioBitRate: Int
+    /// AAC bit rate used by the "Compress audio" tool, in kbit/s for stereo.
+    public var compressionAudioBitRate: Int
     /// Frames per second and longest side, in pixels, of GIFs made from video.
     public var gifFrameRate: Double
     public var gifMaxSide: Int
@@ -33,12 +35,13 @@ public struct ConversionOptions: Sendable, Hashable, Codable {
     }
 
     public init(imageQuality: Double = 0.85, compressionQuality: Double = 0.6, keepMetadata: Bool = true,
-                audioBitRate: Int = 256, gifFrameRate: Double = 10, gifMaxSide: Int = 480, pdfRenderDPI: Double = 150,
-                videoCompression: VideoCompression = .balanced) {
+                audioBitRate: Int = 256, compressionAudioBitRate: Int = 128, gifFrameRate: Double = 10, gifMaxSide: Int = 480,
+                pdfRenderDPI: Double = 150, videoCompression: VideoCompression = .balanced) {
         self.imageQuality = imageQuality
         self.compressionQuality = compressionQuality
         self.keepMetadata = keepMetadata
         self.audioBitRate = audioBitRate
+        self.compressionAudioBitRate = compressionAudioBitRate
         self.gifFrameRate = gifFrameRate
         self.gifMaxSide = gifMaxSide
         self.pdfRenderDPI = pdfRenderDPI
@@ -46,4 +49,20 @@ public struct ConversionOptions: Sendable, Hashable, Codable {
     }
 
     public static let `default` = ConversionOptions()
+
+    /// Settings saved by an earlier version lack the options added since;
+    /// those take their defaults rather than resetting everything.
+    public init(from decoder: any Decoder) throws {
+        let saved = try decoder.container(keyedBy: CodingKeys.self)
+        let standard = ConversionOptions()
+        imageQuality = try saved.decodeIfPresent(Double.self, forKey: .imageQuality) ?? standard.imageQuality
+        compressionQuality = try saved.decodeIfPresent(Double.self, forKey: .compressionQuality) ?? standard.compressionQuality
+        keepMetadata = try saved.decodeIfPresent(Bool.self, forKey: .keepMetadata) ?? standard.keepMetadata
+        audioBitRate = try saved.decodeIfPresent(Int.self, forKey: .audioBitRate) ?? standard.audioBitRate
+        compressionAudioBitRate = try saved.decodeIfPresent(Int.self, forKey: .compressionAudioBitRate) ?? standard.compressionAudioBitRate
+        gifFrameRate = try saved.decodeIfPresent(Double.self, forKey: .gifFrameRate) ?? standard.gifFrameRate
+        gifMaxSide = try saved.decodeIfPresent(Int.self, forKey: .gifMaxSide) ?? standard.gifMaxSide
+        pdfRenderDPI = try saved.decodeIfPresent(Double.self, forKey: .pdfRenderDPI) ?? standard.pdfRenderDPI
+        videoCompression = try saved.decodeIfPresent(VideoCompression.self, forKey: .videoCompression) ?? standard.videoCompression
+    }
 }

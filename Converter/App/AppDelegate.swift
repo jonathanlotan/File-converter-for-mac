@@ -11,8 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         CustomCropTool { [weak self] inputs in self?.cropEditor.open(inputs) },
     ])
     private(set) lazy var cropEditor = CropEditorController(queue: queue)
-    private(set) lazy var metadataWindow = MetadataWindowController { [weak self] input in
-        self?.queue.enqueue(StripImageMetadataConverter(), on: [input])
+    private(set) lazy var metadataWindow = MetadataWindowController { [weak self] converter, input in
+        self?.queue.enqueue(converter, on: [input])
     }
     let settings = AppSettings()
     /// The "Float" shelf, shared by the wheel and the menus.

@@ -138,6 +138,34 @@ public struct CompressPDFConverter: Converter {
     }
 }
 
+// MARK: - Remove metadata
+
+/// Rewrites a PDF without its document information: title, author, subject,
+/// keywords, the application that made it and its dates. The pages aren't
+/// changed. (PDFKit records itself as the producer of the copy.)
+public struct RemovePDFMetadataConverter: Converter {
+    public init() {}
+
+    public var id: String { "pdf.stripMetadata" }
+    public var title: String { "Remove Metadata" }
+    public var role: ConverterRole { .tool }
+    public var isAvailable: Bool { true }
+
+    public func accepts(_ input: InputFile) -> Bool {
+        PDFFiles.isPDF(input)
+    }
+
+    public func output(for input: InputFile) -> OutputSpec {
+        OutputSpec(fileExtension: "pdf", nameSuffix: " (no metadata)")
+    }
+
+    public func convert(_ input: InputFile, to destination: URL, options: ConversionOptions, progress: ProgressHandler) async throws {
+        let document = try PDFFiles.open(input)
+        document.documentAttributes = [:]
+        guard document.write(to: destination) else { throw ConversionError.encoderFailed("couldn't write the PDF") }
+    }
+}
+
 // MARK: - Combine images
 
 /// Two or more images → one PDF, a page per image in name order, each page

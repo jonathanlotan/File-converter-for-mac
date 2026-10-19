@@ -42,6 +42,7 @@ final class SettingsTests: XCTestCase {
         settings.options.imageQuality = 0.7
         settings.options.videoCompression = .smaller
         settings.options.audioBitRate = 320
+        settings.options.compressionAudioBitRate = 96
         settings.preferredFormats[FormatKind.image.rawValue] = "image.tga"
         settings.revealAfterConverting = true
         XCTAssertTrue(settings.showMenuBarIcon, "shown by default")
@@ -52,6 +53,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(reloaded.options.imageQuality, 0.7)
         XCTAssertEqual(reloaded.options.videoCompression, .smaller)
         XCTAssertEqual(reloaded.options.audioBitRate, 320)
+        XCTAssertEqual(reloaded.options.compressionAudioBitRate, 96)
         XCTAssertEqual(reloaded.preferredFormatIDs, ["image.tga"])
         XCTAssertTrue(reloaded.revealAfterConverting)
     }

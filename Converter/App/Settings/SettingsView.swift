@@ -201,10 +201,18 @@ struct SettingsView: View {
                     ForEach([320, 480, 640, 800, 1080], id: \.self) { Text("\($0) px").tag($0) }
                 }
             }
-            Section("Audio") {
+            Section {
                 Picker("AAC bit rate", selection: $settings.options.audioBitRate) {
                     ForEach([128, 192, 256, 320], id: \.self) { Text("\($0) kbit/s").tag($0) }
                 }
+                Picker("Compress audio", selection: $settings.options.compressionAudioBitRate) {
+                    ForEach([64, 96, 128, 160], id: \.self) { Text("\($0) kbit/s").tag($0) }
+                }
+            } header: {
+                Text("Audio")
+            } footer: {
+                Text("Converting to M4A or AAC uses the first rate. “Compress audio” makes an M4A at the second, lower one.")
+                    .font(.callout).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
