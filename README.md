@@ -228,12 +228,33 @@ Swivel never checks for updates, since that would need the network. Use
 </details>
 
 <details>
-<summary><b>How is this different from Tangerine?</b></summary>
+<summary><b>How is this different from Tangerine or Kumquat?</b></summary>
 
 The Shift-drag idea comes from [Tangerine](https://tangerineformac.com) by Leap Studio, a paid
 app with more formats and tools. If you want a commercially supported converter, buy it.
 Swivel is an independent, open-source take on the idea, built from Tangerine's public
 description. None of its code or assets are used.
+
+[Kumquat](https://github.com/iandifilippo/Kumquat) is another free, open-source take on the
+same gesture. It handles more formats than Swivel, has watch folders and runs on Intel Macs too.
+
+| | Swivel | Kumquat | Tangerine |
+|---|---|---|---|
+| Price | Free | Free | Free for the first 20 files, then $29.99 once |
+| License | MIT | MIT | Apple's standard App Store license |
+| Signed and notarized | Pending: v1.0.0, the first notarized build, isn't published yet | Not notarized yet (on its roadmap) | Mac App Store, signed and reviewed by Apple |
+| Network use | None | An update check against GitHub, which can be turned off | No uploads or analytics; the purchase goes through the App Store |
+| Permissions | No Accessibility or Input Monitoring; macOS asks before it saves into Desktop, Documents or Downloads | No Accessibility or Screen Recording | macOS asks before it saves into a folder; anything else ? |
+| Install | DMG or Homebrew cask (pending, with v1.0.0) | Install script (one line in Terminal) or DMG | Mac App Store |
+| Macs | Apple silicon, macOS 13 or later | Apple silicon and Intel, macOS 14 or later | Apple silicon, macOS 13 or later |
+| Formats macOS can't write | No | EPUB, XLSX and more built in; MP3, Ogg, WebM, MKV and WebP once you install FFmpeg or WebP; Office files with LibreOffice | Built in: MP3, Ogg, Opus, WebM, MKV, WebP, EPUB, Pages, PPTX and more |
+| Command line | `swivel` | `kumquat` | ? |
+| Shortcuts actions | Convert File, plus Convert to JPEG, Compress and Convert to PDF | No (on its roadmap) | ? |
+| Finder Quick Action | Yes | No (on its roadmap); a Services menu item and ⌃⌥K instead | ? |
+| Watch folders | No; a Shortcuts folder automation can run Convert File | Yes | ? |
+
+Taken from each project's README, website or App Store page in October 2026. **?** means
+we couldn't find it stated. Corrections are welcome in [Issues](https://github.com/jonathanlotan/Swivel/issues).
 </details>
 
 <details>
