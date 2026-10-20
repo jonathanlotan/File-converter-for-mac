@@ -218,10 +218,10 @@ Shift 拖拽这个想法来自 Leap Studio 的 [Tangerine](https://tangerineform
 |---|---|---|---|
 | 价格 | 免费 | 免费 | 前 20 个文件免费，之后一次性付费 $29.99 |
 | 许可证 | MIT | MIT | Apple 标准 App Store 许可协议 |
-| 签名与公证 | 待定：v1.0.0（首个经过公证的版本）尚未发布 | 尚未公证（在其路线图上） | 通过 Mac App Store 发布，由 Apple 签名并审核 |
+| 签名与公证 | 是，Developer ID 签名，自 1.0.0 起 | 尚未公证（在其路线图上） | 通过 Mac App Store 发布，由 Apple 签名并审核 |
 | 网络使用 | 无 | 向 GitHub 检查更新，可以关闭 | 不上传、无统计分析；购买通过 App Store 完成 |
 | 权限 | 不需要辅助功能或输入监控；保存到桌面、文稿或下载文件夹前 macOS 会先询问 | 不需要辅助功能或屏幕录制 | 保存到某个文件夹前 macOS 会先询问；其他 ? |
-| 安装方式 | DMG 或 Homebrew cask（待定，随 v1.0.0 发布） | 安装脚本（终端里一行命令）或 DMG | Mac App Store |
+| 安装方式 | DMG 或 Homebrew cask | 安装脚本（终端里一行命令）或 DMG | Mac App Store |
 | 支持的 Mac | Apple 芯片，macOS 13 或更高版本 | Apple 芯片和 Intel，macOS 14 或更高版本 | Apple 芯片，macOS 13 或更高版本 |
 | macOS 无法写入的格式 | 不支持 | 内置 EPUB、XLSX 等；安装 FFmpeg 或 WebP 后支持 MP3、Ogg、WebM、MKV 和 WebP；装 LibreOffice 后支持 Office 文件 | 内置：MP3、Ogg、Opus、WebM、MKV、WebP、EPUB、Pages、PPTX 等 |
 | 命令行 | `swivel` | `kumquat` | ? |

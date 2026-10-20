@@ -242,10 +242,10 @@ same gesture. It handles more formats than Swivel, has watch folders and runs on
 |---|---|---|---|
 | Price | Free | Free | Free for the first 20 files, then $29.99 once |
 | License | MIT | MIT | Apple's standard App Store license |
-| Signed and notarized | Pending: v1.0.0, the first notarized build, isn't published yet | Not notarized yet (on its roadmap) | Mac App Store, signed and reviewed by Apple |
+| Signed and notarized | Yes, Developer ID, since 1.0.0 | Not notarized yet (on its roadmap) | Mac App Store, signed and reviewed by Apple |
 | Network use | None | An update check against GitHub, which can be turned off | No uploads or analytics; the purchase goes through the App Store |
 | Permissions | No Accessibility or Input Monitoring; macOS asks before it saves into Desktop, Documents or Downloads | No Accessibility or Screen Recording | macOS asks before it saves into a folder; anything else ? |
-| Install | DMG or Homebrew cask (pending, with v1.0.0) | Install script (one line in Terminal) or DMG | Mac App Store |
+| Install | DMG or Homebrew cask | Install script (one line in Terminal) or DMG | Mac App Store |
 | Macs | Apple silicon, macOS 13 or later | Apple silicon and Intel, macOS 14 or later | Apple silicon, macOS 13 or later |
 | Formats macOS can't write | No | EPUB, XLSX and more built in; MP3, Ogg, WebM, MKV and WebP once you install FFmpeg or WebP; Office files with LibreOffice | Built in: MP3, Ogg, Opus, WebM, MKV, WebP, EPUB, Pages, PPTX and more |
 | Command line | `swivel` | `kumquat` | ? |
