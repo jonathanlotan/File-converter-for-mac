@@ -2,7 +2,7 @@
 # `make release` fills in the version and checksum.
 cask "swivel" do
   version "1.0.0"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "0a762333535d8efc46a3e21c6f2ae4d57d2566dc7b0ac036d1171ec9fb7d6cb3"
 
   url "https://github.com/jonathanlotan/Swivel/releases/download/v#{version}/Swivel.dmg"
   name "Swivel"
